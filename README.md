@@ -62,6 +62,15 @@ Xoá điểm để chơi lại từ đầu: mở Console của trình duyệt, c
 | `js/effects.js` | Mưa, đom đóm/phấn hoa, bướm, chữ "meow"/"z" |
 | `js/audio.js` | Toàn bộ âm thanh tạo bằng Web Audio (gió, mưa, chim, dế, meo, gừ gừ, vỗ cánh) |
 
-## Đưa lên mạng
+## Bản online
 
-Thư mục này là web tĩnh — kéo thả cả thư mục lên Vercel / Netlify, hoặc đẩy lên GitHub Pages là chạy.
+- Chơi: https://tiev84.github.io/cat-simulator/
+- Code: https://github.com/Tiev84/cat-simulator (GitHub Pages tự đăng bản mới mỗi lần đẩy code lên nhánh `main`)
+
+Cập nhật: sửa code trên máy, thử bằng `python3 serve.py`, rồi
+
+```bash
+git add -A && git commit -m "mô tả thay đổi" && git push
+```
+
+Khoảng 1 phút sau link online có bản mới. Người chơi tải lại trang (Cmd+Shift+R) nếu vẫn thấy bản cũ.
