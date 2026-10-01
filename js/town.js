@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { TOWN, terrainHeight, rng, hash2, townCenter } from './noise.js';
+import { TOWN, CITY, terrainHeight, rng, hash2, townCenter } from './noise.js';
 import { roundTree } from './props.js';
 
 // Little towns: houses, street lamps and parked cars laid out on the street
@@ -118,6 +118,7 @@ export class Towns {
     this.scene = scene;
     this.key = '';
     this.colliders = [];
+    this.extra = []; // colliders from the city block
     this.lamps = [];
     this.wallMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.9, side: THREE.DoubleSide });
     this.roofMat = new THREE.MeshStandardMaterial({ vertexColors: true, flatShading: true, roughness: 0.8, side: THREE.DoubleSide });
@@ -158,6 +159,8 @@ export class Towns {
     for (let dz = -1; dz <= 1; dz++) {
       for (let dx = -1; dx <= 1; dx++) {
         const cx = nx + dx * S, cz = nz + dz * S;
+        // the first town is the Cartoon City block (city.js)
+        if (cx === CITY.c[0] && cz === CITY.c[1]) continue;
         if (Math.hypot(cx - focus.x, cz - focus.z) < 290) list.push([cx, cz]);
       }
     }
@@ -291,29 +294,33 @@ export class Towns {
   // cat may stand on, or -Infinity.
   collide(pos, radius, feetY) {
     let top = -Infinity;
-    for (const c of this.colliders) {
-      if (pos.x < c.x0 - radius || pos.x > c.x1 + radius || pos.z < c.z0 - radius || pos.z > c.z1 + radius) continue;
-      if (feetY > c.top - 0.15) {
-        if (c.top < 50 && pos.x > c.x0 && pos.x < c.x1 && pos.z > c.z0 && pos.z < c.z1) top = Math.max(top, c.top);
-        continue;
-      }
-      const px = Math.max(c.x0, Math.min(pos.x, c.x1));
-      const pz = Math.max(c.z0, Math.min(pos.z, c.z1));
-      let dx = pos.x - px, dz = pos.z - pz;
-      const d = Math.hypot(dx, dz);
-      if (d > 0.0001) {
-        if (d < radius) {
-          pos.x = px + (dx / d) * radius;
-          pos.z = pz + (dz / d) * radius;
+    for (const list of [this.colliders, this.extra]) {
+      for (const c of list) {
+        if (pos.x < c.x0 - radius || pos.x > c.x1 + radius || pos.z < c.z0 - radius || pos.z > c.z1 + radius) continue;
+        const inside = pos.x > c.x0 && pos.x < c.x1 && pos.z > c.z0 && pos.z < c.z1;
+        // sidewalks and kerbs: always walk up onto them
+        if (c.step || feetY > c.top - 0.15) {
+          if (inside && c.top < 50) top = Math.max(top, c.top);
+          continue;
         }
-      } else {
-        // centre is inside the box: leave by the nearest face
-        const opts = [[pos.x - c.x0, -1, 0], [c.x1 - pos.x, 1, 0], [pos.z - c.z0, 0, -1], [c.z1 - pos.z, 0, 1]].sort((a, b) => a[0] - b[0]);
-        const [, sx, sz] = opts[0];
-        if (sx < 0) pos.x = c.x0 - radius;
-        if (sx > 0) pos.x = c.x1 + radius;
-        if (sz < 0) pos.z = c.z0 - radius;
-        if (sz > 0) pos.z = c.z1 + radius;
+        const px = Math.max(c.x0, Math.min(pos.x, c.x1));
+        const pz = Math.max(c.z0, Math.min(pos.z, c.z1));
+        const dx = pos.x - px, dz = pos.z - pz;
+        const d = Math.hypot(dx, dz);
+        if (d > 0.0001) {
+          if (d < radius) {
+            pos.x = px + (dx / d) * radius;
+            pos.z = pz + (dz / d) * radius;
+          }
+        } else {
+          // centre is inside the box: leave by the nearest face
+          const opts = [[pos.x - c.x0, -1, 0], [c.x1 - pos.x, 1, 0], [pos.z - c.z0, 0, -1], [c.z1 - pos.z, 0, 1]].sort((a, b) => a[0] - b[0]);
+          const [, sx, sz] = opts[0];
+          if (sx < 0) pos.x = c.x0 - radius;
+          if (sx > 0) pos.x = c.x1 + radius;
+          if (sz < 0) pos.z = c.z0 - radius;
+          if (sz > 0) pos.z = c.z1 + radius;
+        }
       }
     }
     return top;
@@ -321,7 +328,8 @@ export class Towns {
 
   // Keep the camera out of buildings by pulling it toward the target.
   fixCamera(target, cam) {
-    const inside = (p) => this.colliders.some((c) => c.top < 50 && p.y < c.top && p.x > c.x0 - 0.3 && p.x < c.x1 + 0.3 && p.z > c.z0 - 0.3 && p.z < c.z1 + 0.3);
+    const hit = (c, p) => !c.step && c.top < 50 && p.y < c.top && p.x > c.x0 - 0.3 && p.x < c.x1 + 0.3 && p.z > c.z0 - 0.3 && p.z < c.z1 + 0.3;
+    const inside = (p) => this.colliders.some((c) => hit(c, p)) || this.extra.some((c) => hit(c, p));
     if (!inside(cam)) return;
     const start = cam.clone();
     for (let t = 0.95; t > 0.05; t -= 0.05) {

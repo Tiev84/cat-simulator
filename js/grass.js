@@ -90,7 +90,7 @@ export class Grass {
           float gFade = 1.0 - smoothstep(uPatch * 0.3, uPatch * 0.5, gDist);
           float gClump = vnoise(gBase * 0.13);
           float gH = uH * aOffset.w * gFade * (0.5 + 0.95 * gClump);
-          gH *= (1.0 - roadInfo(gBase).y) * mix(1.0, 0.4, townMask(gBase));
+          gH *= (1.0 - roadInfo(gBase).y) * mix(1.0, 0.4, townMask(gBase)) * (1.0 - smoothstep(0.6, 0.95, cityMask(gBase)));
           // blades right in front of the lens shrink away so they never wall off the view
           float gCamNear = 1.0 - smoothstep(0.4, 2.2, length(gBase - cameraPosition.xz));
           float gCamLow = 1.0 - smoothstep(0.7, 1.3, cameraPosition.y - terrainH(gBase));

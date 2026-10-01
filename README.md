@@ -59,6 +59,7 @@ Xoá điểm để chơi lại từ đầu: mở Console của trình duyệt, c
 | `js/grass.js` | Cỏ GPU (hàng trăm nghìn lá), gió, mèo rẽ cỏ khi đi qua |
 | `js/terrain.js`, `js/noise.js` | Đồi vô tận, mặt đường và thị trấn san phẳng (cùng một hàm độ cao cho JS và shader) |
 | `js/props.js` | Cây, đá, bụi, hoa sinh theo từng ô đất |
+| `js/city.js` | Khu phố "Cartoon City" (ithappy, bản Free cho Godot) đặt ở thị trấn đầu tiên: `models/city/city.json` được chuyển tự động từ cảnh Godot (330 mảnh, 79 model), vẽ theo nhóm (instancing), có va chạm, đứng được trên vỉa hè và nóc xe |
 | `js/town.js` | Thị trấn: nhà, đèn đường, ô tô, cây trong vườn, va chạm với nhà |
 | `js/autorig.js` | Tự gắn xương cho model tĩnh (Tom, Messi, con dê): dò hông, gối, vai, khuỷu từ hình dạng rồi gán từng đỉnh vào xương gần nhất |
 | `js/people.js` | Nhân vật 2 chân từ model (Tom, Ronaldo, Messi): đi, chạy, bay, ăn mừng; đàn dê ngoài đồng |
@@ -82,6 +83,6 @@ Khoảng 1 phút sau link online có bản mới. Người chơi tải lại tra
 
 ## Model 3D
 
-Các model trong `models/` do bạn tải về (Sketchfab): mèo bicolor có xương, mèo OIIA, Maxwell, Tom (bản GameCube), Ronaldo, Messi, con dê.
+Khu phố trong `models/city/` từ gói **Cartoon City Free** của ithappy. Các model khác trong `models/` do bạn tải về (Sketchfab): mèo bicolor có xương, mèo OIIA, Maxwell, Tom (bản GameCube), Ronaldo, Messi, con dê.
 Bản quyền thuộc tác giả từng model — dùng cho game chơi vui với bạn bè. Mèo Lực Sĩ vẫn dựng bằng code.
 Nếu model không tải được, game tự dùng mèo dựng bằng code thay thế.

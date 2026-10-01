@@ -8,11 +8,12 @@ import { SKINS } from './cat.js';
 import { loadCatModels, createRig, createGoats } from './models.js';
 import { WINGS, CAPE, createWings, setWingEnvironment, getWingEnvironment } from './wings.js';
 import { Towns } from './town.js';
+import { City } from './city.js';
 import { Mice } from './mice.js';
 import { Rain, Motes, Butterflies, FloatText } from './effects.js';
 import { Sound } from './audio.js';
 import { Input, Player, CameraRig } from './player.js';
-import { terrainHeight, smoothstep } from './noise.js';
+import { terrainHeight, smoothstep, cityMask } from './noise.js';
 
 const $ = (id) => document.getElementById(id);
 // Yield to the browser; the timeout keeps loading going in a background tab.
@@ -97,6 +98,14 @@ async function buildWorld(progress) {
   progress(0.5, 'Đang xây thị trấn…');
   await frame();
   const towns = new Towns(scene);
+  progress(0.55, 'Đang dựng khu phố…');
+  const city = new City(scene);
+  try {
+    await city.load();
+    towns.extra = city.colliders;
+  } catch (e) {
+    console.warn('City block unavailable', e);
+  }
   const mice = new Mice(scene);
   const goats = createGoats(scene);
   grassNear.uniforms.uMice.value = mice.push;
@@ -105,7 +114,7 @@ async function buildWorld(progress) {
   const camRig = new CameraRig(camera);
   props.update(player.pos);
   towns.update(player.pos, 0);
-  return { scene, camera, env, terrain, grassNear, grassFar, props, towns, mice, goats, rain, motes, butterflies, text, player, camRig, zzzT: 0, catPush: new THREE.Vector3(), hintT: 0, wasFlying: false };
+  return { scene, camera, env, terrain, grassNear, grassFar, props, towns, city, mice, goats, rain, motes, butterflies, text, player, camRig, zzzT: 0, catPush: new THREE.Vector3(), hintT: 0, wasFlying: false };
 }
 
 function applyQuality() {
@@ -608,10 +617,16 @@ function step(dt) {
   const g = terrainHeight(player.pos.x, player.pos.z);
   W.catPush.set(player.pos.x, player.pos.z, 1 - smoothstep(0.1, 0.8, player.pos.y - g));
   W.grassNear.uniforms.uCatR.value = rig.cfg.radius * 1.7;
+  // inside the city block the ground is paved: draw far less grass there
+  const inCity = cityMask(player.pos.x, player.pos.z);
+  const q = QUALITY[settings.quality];
+  W.grassNear.setCount(Math.round(q.near * (1 - 0.75 * inCity)));
+  W.grassFar.setCount(Math.round(q.far * (1 - 0.5 * inCity)));
   W.grassNear.update(time, player.pos, W.catPush, env);
   W.grassFar.update(time, player.pos, W.catPush, env);
   W.props.update(player.pos);
   W.towns.update(player.pos, env.night);
+  W.city.update(env.night);
   W.rain.update(time, camera.position, env);
   W.motes.update(time, player.pos, env, renderer.getPixelRatio());
   W.butterflies.update(dt, time, player.pos, player.grounded ? player.speed : 3, env, W.props.flowerSpots);

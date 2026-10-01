@@ -34,6 +34,15 @@ export const TOWN = {
   walk: 1.4, // sidewalk width
 };
 
+// The first town (straight ahead of the spawn) is replaced by the Cartoon
+// City block; its flat area is a rectangle sized to the block.
+export const CITY = { c: [TOWN.O[0], TOWN.O[1]], hx: 64, hz: 78, blend: 30 };
+
+export function cityMask(x, z) {
+  const d = Math.max(Math.abs(x - CITY.c[0]) - CITY.hx, Math.abs(z - CITY.c[1]) - CITY.hz);
+  return 1 - smoothstep(0, CITY.blend, d);
+}
+
 export function townCenter(x, z, out = [0, 0]) {
   out[0] = Math.round((x - TOWN.O[0]) / TOWN.S) * TOWN.S + TOWN.O[0];
   out[1] = Math.round((z - TOWN.O[1]) / TOWN.S) * TOWN.S + TOWN.O[1];
@@ -44,7 +53,7 @@ const _tc = [0, 0];
 export function townMask(x, z) {
   townCenter(x, z, _tc);
   const d = Math.max(Math.abs(x - _tc[0]), Math.abs(z - _tc[1]));
-  return 1 - smoothstep(TOWN.R, TOWN.R + TOWN.B, d);
+  return Math.max(1 - smoothstep(TOWN.R, TOWN.R + TOWN.B, d), cityMask(x, z));
 }
 
 // 0..1: 1 on asphalt, includes the sidewalk band when `withWalk` is set.
@@ -59,6 +68,7 @@ export function roadMask(x, z, withWalk = false) {
   const gz = Math.abs(((((lz + g / 2) % g) + g) % g) - g / 2);
   const town = inTown && Math.min(gx, gz) < half ? 1 : 0;
   const hw = Math.min(Math.abs(lx), Math.abs(lz)) < half - 0.8 ? 1 : 0;
+  if (cityMask(x, z) > 0.5) return 0; // the city brings its own streets
   return Math.max(town, hw);
 }
 
@@ -94,9 +104,13 @@ const float TOWN_G = ${f(TOWN.grid)};
 const float ROAD_W = ${f(TOWN.road)};
 const float WALK_W = ${f(TOWN.walk)};
 vec2 townCenter(vec2 p) { return floor((p - TOWN_O) / TOWN_S + 0.5) * TOWN_S + TOWN_O; }
+float cityMask(vec2 p) {
+  vec2 l = abs(p - vec2(${f(CITY.c[0])}, ${f(CITY.c[1])})) - vec2(${f(CITY.hx)}, ${f(CITY.hz)});
+  return 1.0 - smoothstep(0.0, ${f(CITY.blend)}, max(l.x, l.y));
+}
 float townMask(vec2 p) {
   vec2 l = abs(p - townCenter(p));
-  return 1.0 - smoothstep(TOWN_R, TOWN_R + TOWN_B, max(l.x, l.y));
+  return max(1.0 - smoothstep(TOWN_R, TOWN_R + TOWN_B, max(l.x, l.y)), cityMask(p));
 }
 // x: asphalt, y: asphalt + sidewalk, z: distance to the nearest road centre line
 vec3 roadInfo(vec2 p) {
@@ -104,6 +118,7 @@ vec3 roadInfo(vec2 p) {
   float inTown = step(max(abs(l.x), abs(l.y)), TOWN_R + 2.0);
   vec2 g = abs(mod(l + TOWN_G * 0.5, TOWN_G) - TOWN_G * 0.5);
   float d = min(mix(1e3, min(g.x, g.y), inTown), min(abs(l.x), abs(l.y)) + 0.8);
+  d = mix(d, 1e3, step(0.5, cityMask(p)));
   return vec3(1.0 - smoothstep(ROAD_W - 0.15, ROAD_W + 0.15, d), 1.0 - smoothstep(ROAD_W + WALK_W - 0.1, ROAD_W + WALK_W + 0.1, d), d);
 }
 float terrainH(vec2 p) {
