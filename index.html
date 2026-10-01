@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cat Simulator</title>
+  <meta name="description" content="Walk, nap and fly as a cat across an endless low-poly meadow." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🐈</text></svg>" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+        "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div id="stage"></div>
+  <div id="vignette"></div>
+  <div id="letterbox"><div></div><div></div></div>
+
+  <section id="menu" class="screen">
+    <div class="menu-inner">
+      <h1 class="title">CAT SIMULATOR</h1>
+      <p class="subtitle">Choose your cat and its wings</p>
+      <h2 class="section">Cat</h2>
+      <div class="grid" id="cat-grid"></div>
+      <h2 class="section">Wings</h2>
+      <div class="grid" id="wing-grid"></div>
+      <div class="enter-row">
+        <button id="enter" class="enter" type="button">Enter the meadow</button>
+        <p class="hint">Defaults are pre-selected · Enter to start</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="loading" class="screen hidden">
+    <h1 class="title">CAT SIMULATOR</h1>
+    <p id="load-text">Growing grass…</p>
+    <div class="bar"><div id="load-bar"></div></div>
+  </section>
+
+  <div id="hud" class="hidden">
+    <div class="quest" id="quest">
+      <div class="q-row"><span class="q-icon">🐭</span><b id="q-count">0</b><span class="q-label">mice caught</span>
+        <span class="q-near" title="Nearest mouse"><i id="q-arrow">↑</i><span id="q-dist">–</span></span></div>
+      <div class="q-goal" id="q-goal"></div>
+      <div class="q-bar"><div id="q-fill"></div></div>
+    </div>
+    <div class="topbar">
+      <label class="pill">QUALITY
+        <select id="opt-quality">
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="ultra">Ultra</option>
+        </select>
+      </label>
+      <label class="pill">WEATHER
+        <select id="opt-weather">
+          <option value="clear">Clear</option>
+          <option value="cloudy">Cloudy</option>
+          <option value="rain">Rain</option>
+        </select>
+      </label>
+      <label class="pill">TIME
+        <select id="opt-time">
+          <option value="cycle">Day/night cycle</option>
+          <option value="morning">Morning</option>
+          <option value="noon">Noon</option>
+          <option value="golden">Golden hour</option>
+          <option value="sunset">Sunset</option>
+          <option value="night">Night</option>
+        </select>
+      </label>
+      <div class="pill">SOUND <button id="opt-sound" type="button">On</button></div>
+      <div class="pill">SKINS <button id="opt-skins" type="button">Change</button></div>
+    </div>
+
+    <div class="legend" id="legend">
+      <span><b>WASD / Arrow Keys</b> — Move</span>
+      <span><b>Shift</b> — Run</span>
+      <span><b>Space</b> — Jump</span>
+      <span><b>Left click</b> — Pounce</span>
+      <span><b>E</b> — <i id="e-label">Meow / groom</i></span>
+      <span><b>Z</b> — Sleep</span>
+      <br />
+      <span><b>F</b> — Wings (fly: Space up / Shift down)</span>
+      <span><b>Mouse</b> — Camera (click to lock, Esc to free)</span>
+      <span><b>Wheel</b> — Zoom</span>
+      <span><b>C</b> — Cinematic</span>
+      <span><b>Q</b> — Quests</span>
+      <span><b>H</b> — Hide UI</span>
+      <span><b>F3</b> — Debug</span>
+    </div>
+
+    <div class="corner">
+      <button id="share" class="ghost" type="button">Share</button>
+    </div>
+    <pre id="debug" class="hidden"></pre>
+  </div>
+  <div id="toast"></div>
+  <div id="modal" class="hidden">
+    <div class="modal-card" role="dialog" aria-labelledby="modal-title">
+      <h2 id="modal-title"></h2>
+      <div id="modal-body"></div>
+      <div id="modal-actions"></div>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
