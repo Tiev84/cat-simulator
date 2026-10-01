@@ -1,10 +1,10 @@
 <!doctype html>
-<html lang="en">
+<html lang="vi">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Cat Simulator</title>
-  <meta name="description" content="Walk, nap and fly as a cat across an endless low-poly meadow." />
+  <title>Mèo Simulator</title>
+  <meta name="description" content="Làm một chú mèo: dạo chơi, ngủ, bay và săn chuột trên đồng cỏ vô tận." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet" />
@@ -26,81 +26,81 @@
 
   <section id="menu" class="screen">
     <div class="menu-inner">
-      <h1 class="title">CAT SIMULATOR</h1>
-      <p class="subtitle">Choose your cat and its wings</p>
-      <h2 class="section">Cat</h2>
+      <h1 class="title">MÈO SIMULATOR</h1>
+      <p class="subtitle">Chọn mèo và đôi cánh của bạn</p>
+      <h2 class="section">Mèo</h2>
       <div class="grid" id="cat-grid"></div>
-      <h2 class="section">Wings</h2>
+      <h2 class="section">Cánh</h2>
       <div class="grid" id="wing-grid"></div>
       <div class="enter-row">
-        <button id="enter" class="enter" type="button">Enter the meadow</button>
-        <p class="hint">Defaults are pre-selected · Enter to start</p>
+        <button id="enter" class="enter" type="button">Vào đồng cỏ</button>
+        <p class="hint">Đã chọn sẵn mặc định · Nhấn Enter để bắt đầu</p>
       </div>
     </div>
   </section>
 
   <section id="loading" class="screen hidden">
-    <h1 class="title">CAT SIMULATOR</h1>
-    <p id="load-text">Growing grass…</p>
+    <h1 class="title">MÈO SIMULATOR</h1>
+    <p id="load-text">Đang trồng cỏ…</p>
     <div class="bar"><div id="load-bar"></div></div>
   </section>
 
   <div id="hud" class="hidden">
     <div class="quest" id="quest">
-      <div class="q-row"><span class="q-icon">🐭</span><b id="q-count">0</b><span class="q-label">mice caught</span>
-        <span class="q-near" title="Nearest mouse"><i id="q-arrow">↑</i><span id="q-dist">–</span></span></div>
+      <div class="q-row"><span class="q-icon">🐭</span><b id="q-count">0</b><span class="q-label">chuột đã bắt</span>
+        <span class="q-near" title="Chuột gần nhất"><i id="q-arrow">↑</i><span id="q-dist">–</span></span></div>
       <div class="q-goal" id="q-goal"></div>
       <div class="q-bar"><div id="q-fill"></div></div>
     </div>
     <div class="topbar">
-      <label class="pill">QUALITY
+      <label class="pill">CHẤT LƯỢNG
         <select id="opt-quality">
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-          <option value="ultra">Ultra</option>
+          <option value="low">Thấp</option>
+          <option value="medium">Trung bình</option>
+          <option value="high">Cao</option>
+          <option value="ultra">Siêu cao</option>
         </select>
       </label>
-      <label class="pill">WEATHER
+      <label class="pill">THỜI TIẾT
         <select id="opt-weather">
-          <option value="clear">Clear</option>
-          <option value="cloudy">Cloudy</option>
-          <option value="rain">Rain</option>
+          <option value="clear">Quang đãng</option>
+          <option value="cloudy">Nhiều mây</option>
+          <option value="rain">Mưa</option>
         </select>
       </label>
-      <label class="pill">TIME
+      <label class="pill">THỜI GIAN
         <select id="opt-time">
-          <option value="cycle">Day/night cycle</option>
-          <option value="morning">Morning</option>
-          <option value="noon">Noon</option>
-          <option value="golden">Golden hour</option>
-          <option value="sunset">Sunset</option>
-          <option value="night">Night</option>
+          <option value="cycle">Ngày đêm tự động</option>
+          <option value="morning">Buổi sáng</option>
+          <option value="noon">Giữa trưa</option>
+          <option value="golden">Giờ vàng</option>
+          <option value="sunset">Hoàng hôn</option>
+          <option value="night">Ban đêm</option>
         </select>
       </label>
-      <div class="pill">SOUND <button id="opt-sound" type="button">On</button></div>
-      <div class="pill">SKINS <button id="opt-skins" type="button">Change</button></div>
+      <div class="pill">ÂM THANH <button id="opt-sound" type="button">Bật</button></div>
+      <div class="pill">MÈO <button id="opt-skins" type="button">Đổi</button></div>
     </div>
 
     <div class="legend" id="legend">
-      <span><b>WASD / Arrow Keys</b> — Move</span>
-      <span><b>Shift</b> — Run</span>
-      <span><b>Space</b> — Jump</span>
-      <span><b>Left click</b> — Pounce</span>
-      <span><b>E</b> — <i id="e-label">Meow / groom</i></span>
-      <span><b>Z</b> — Sleep</span>
+      <span><b>WASD / Phím mũi tên</b> — Di chuyển</span>
+      <span><b>Shift</b> — Chạy</span>
+      <span><b>Space</b> — Nhảy</span>
+      <span><b>Chuột trái</b> — Vồ</span>
+      <span><b>E</b> — <i id="e-label">Kêu meo (giữ: liếm lông)</i></span>
+      <span><b>Z</b> — Ngủ</span>
       <br />
-      <span><b>F</b> — Wings (fly: Space up / Shift down)</span>
-      <span><b>Mouse</b> — Camera (click to lock, Esc to free)</span>
-      <span><b>Wheel</b> — Zoom</span>
-      <span><b>C</b> — Cinematic</span>
-      <span><b>Q</b> — Quests</span>
-      <span><b>H</b> — Hide UI</span>
-      <span><b>F3</b> — Debug</span>
+      <span><b>F</b> — Bật/tắt cánh (bay: Space lên / Shift xuống)</span>
+      <span><b>Chuột</b> — Xoay camera (bấm để khoá, Esc để thả)</span>
+      <span><b>Lăn chuột</b> — Phóng to/nhỏ</span>
+      <span><b>C</b> — Quay phim</span>
+      <span><b>Q</b> — Nhiệm vụ</span>
+      <span><b>H</b> — Ẩn giao diện</span>
+      <span><b>F3</b> — Thông số</span>
     </div>
 
     <div class="corner">
-      <button id="share" class="ghost" type="button">Share</button>
+      <button id="share" class="ghost" type="button">Chia sẻ</button>
     </div>
     <pre id="debug" class="hidden"></pre>
   </div>

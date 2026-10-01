@@ -1,4 +1,4 @@
-# Cat Simulator
+# Mèo Simulator
 
 Game 3D low-poly chạy trên trình duyệt: điều khiển một chú mèo đi dạo, ngủ, bay và săn chuột trên đồng cỏ vô tận có các thị trấn nhỏ.
 Không cần cài gì thêm — chỉ HTML/JS thuần + three.js nạp từ CDN.
@@ -51,6 +51,7 @@ Xoá điểm để chơi lại từ đầu: mở Console của trình duyệt, c
 | File | Nội dung |
 |---|---|
 | `js/main.js` | Khởi động, menu chọn skin (ảnh thumbnail render trực tiếp), HUD, vòng lặp game |
+| `js/models.js` | Nạp model 3D (`models/`): mèo bicolor có xương cho Mèo Cam/Mun/Tuxedo/Ú (đổi màu bằng shader, chuyển động bằng cách xoay xương), Mèo OIIA (morph nằm ổ bánh mì khi xoay), Maxwell (có điệu nhảy gốc) |
 | `js/cat.js` | Các skin mèo dựng bằng code: thân liền khối (loft), lông có sheen + vân sợi, đầu kiểu thật / kiểu hoạt hình (Tom) / low-poly (Maxwell); hoa văn sọc, yếm, vớ; animation |
 | `js/wings.js` | 6 loại cánh lông vũ + cánh quạt trực thăng + áo choàng dơi của Tom |
 | `js/grass.js` | Cỏ GPU (hàng trăm nghìn lá), gió, mèo rẽ cỏ khi đi qua |
@@ -74,3 +75,9 @@ git add -A && git commit -m "mô tả thay đổi" && git push
 ```
 
 Khoảng 1 phút sau link online có bản mới. Người chơi tải lại trang (Cmd+Shift+R) nếu vẫn thấy bản cũ.
+
+## Model 3D
+
+Các model trong `models/` do bạn tải về (Sketchfab): mèo bicolor có xương, mèo OIIA, Maxwell.
+Bản quyền thuộc tác giả từng model — dùng cho game chơi vui với bạn bè. Mèo Lực Sĩ và Mèo Tom vẫn dựng bằng code.
+Nếu model không tải được, game tự dùng mèo dựng bằng code thay thế.

@@ -4,7 +4,8 @@ import { Environment } from './sky.js';
 import { Terrain } from './terrain.js';
 import { Grass } from './grass.js';
 import { Props } from './props.js';
-import { SKINS, createCat } from './cat.js';
+import { SKINS } from './cat.js';
+import { loadCatModels, createRig } from './models.js';
 import { WINGS, CAPE, createWings, setWingEnvironment, getWingEnvironment } from './wings.js';
 import { Towns } from './town.js';
 import { Mice } from './mice.js';
@@ -23,13 +24,15 @@ const QUALITY = {
   high: { px: 1.5, shadow: 2048, ext: 14, near: 140000, far: 75000 },
   ultra: { px: 2, shadow: 4096, ext: 16, near: 200000, far: 110000 },
 };
-const MEOW_TEXT = { ginger: 'mew!', midnight: 'meow', tuxedo: 'meow!', chonky: 'mrrrp', buff: 'MEOW.', maxwell: 'meow?', tom: 'MEOWWW!', oiia: 'oiia!' };
+const MEOW_TEXT = { ginger: 'meo!', midnight: 'meo', tuxedo: 'meo!', chonky: 'mrrrp', buff: 'MEO.', maxwell: 'meo?', tom: 'MEOWWW!', oiia: 'oiia!' };
+const BADGES = { DEFAULT: 'MẶC ĐỊNH', GENERATED: 'PHỐI MÀU', CHONK: 'MẬP', MEME: 'MEME', UNLOCK: 'MỞ KHOÁ' };
+const HOLD = { groom: 'liếm lông', flex: 'gồng cơ', sneak: 'rón rén', spin: 'xoay' };
 
 // Catching mice unlocks these.
 const REWARDS = [
-  { at: 5, kind: 'wings', id: 'helicopter', name: 'Helicopter rotor', how: 'Press F to spin up and take off.' },
-  { at: 10, kind: 'skin', id: 'tom', name: 'Tom', how: 'Wings on (F) and he flies with his bat cape.' },
-  { at: 15, kind: 'skin', id: 'oiia', name: 'OIIA Cat', how: 'Hold E to spin round and round: oiia oiia!' },
+  { at: 5, kind: 'wings', id: 'helicopter', name: 'Cánh quạt trực thăng', how: 'Bấm F để quạt quay và cất cánh.' },
+  { at: 10, kind: 'skin', id: 'tom', name: 'Mèo Tom', how: 'Bật cánh (F) là Tom bay bằng áo choàng dơi.' },
+  { at: 15, kind: 'skin', id: 'oiia', name: 'Mèo OIIA', how: 'Giữ E để nằm ổ bánh mì và xoay tít: oiia oiia!' },
 ];
 
 // ---------------------------------------------------------------- settings
@@ -73,22 +76,22 @@ async function buildWorld(progress) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.05, 1600);
   const env = new Environment(scene);
-  progress(0.12, 'Shaping the hills…');
+  progress(0.12, 'Đang đắp đồi…');
   await frame();
   const terrain = new Terrain(scene);
-  progress(0.25, 'Growing grass…');
+  progress(0.25, 'Đang trồng cỏ…');
   await frame();
   const grassNear = new Grass({ patch: 28, maxCount: 200000, height: 0.4, width: 0.042, segments: 4, seed: 3 });
   const grassFar = new Grass({ patch: 90, maxCount: 110000, height: 0.45, width: 0.13, segments: 3, seed: 5, ao: 0.75 });
   scene.add(grassNear.mesh, grassFar.mesh);
-  progress(0.4, 'Planting trees…');
+  progress(0.4, 'Đang trồng cây…');
   await frame();
   const props = new Props(scene);
   const rain = new Rain(scene);
   const motes = new Motes(scene);
   const butterflies = new Butterflies(scene);
   const text = new FloatText(scene);
-  progress(0.5, 'Building the towns…');
+  progress(0.5, 'Đang xây thị trấn…');
   await frame();
   const towns = new Towns(scene);
   const mice = new Mice(scene);
@@ -119,7 +122,7 @@ function applySettings() {
   $('opt-quality').value = settings.quality;
   $('opt-weather').value = settings.weather;
   $('opt-time').value = settings.time;
-  $('opt-sound').textContent = settings.sound ? 'On' : 'Off';
+  $('opt-sound').textContent = settings.sound ? 'Bật' : 'Tắt';
 }
 
 function setCharacter() {
@@ -130,7 +133,7 @@ function setCharacter() {
     W.rig.dispose();
     W.wings.dispose();
   }
-  const rig = createCat(skin);
+  const rig = createRig(skin);
   const wings = createWings(spec);
   wings.onFlap = (f) => sound.flap(f);
   rig.wingMount.add(wings.group);
@@ -139,7 +142,7 @@ function setCharacter() {
   W.rig = rig;
   W.wings = wings;
   const hold = skin.hold || (skin.shape === 'tom' ? 'sneak' : skin.kind === 'biped' ? 'flex' : skin.kind === 'loaf' ? 'spin' : 'groom');
-  $('e-label').textContent = `Meow (hold: ${hold})`;
+  $('e-label').textContent = `Kêu meo (giữ: ${HOLD[hold] || hold})`;
 }
 
 // ---------------------------------------------------------------- menu
@@ -152,13 +155,13 @@ function card(item, group, onPick) {
   b.type = 'button';
   b.className = 'card';
   b.dataset.id = item.id;
-  const badge = item.badge ? `<span class="badge ${item.badge === 'DEFAULT' ? 'default' : ''}">${item.badge}</span>` : '';
+  const badge = item.badge ? `<span class="badge ${item.badge === 'DEFAULT' ? 'default' : ''}">${BADGES[item.badge] || item.badge}</span>` : '';
   b.innerHTML = `<img class="thumb" alt="" /><span class="check"></span>
-    ${item.unlock ? `<span class="lock">🔒 Catch ${item.unlock} mice</span>` : ''}
+    ${item.unlock ? `<span class="lock">🔒 Bắt ${item.unlock} con chuột</span>` : ''}
     <div class="meta"><div class="name">${item.name}${badge}</div><div class="desc">${item.desc}</div></div>`;
   b.addEventListener('click', () => {
     if (!unlocked(item)) {
-      toast(`Catch ${item.unlock} mice to unlock ${item.name} (you have ${settings.mice})`);
+      toast(`Bắt ${item.unlock} con chuột để mở khoá ${item.name} (bạn đang có ${settings.mice})`);
       return;
     }
     onPick(item.id);
@@ -240,7 +243,7 @@ const IDLE = { speed: 0, airW: 0, flyW: 0, sleepW: 0, sitW: 0, groomW: 0, meowW:
 
 function snap(skin, wingSpec) {
   const T = thumbStage();
-  const rig = createCat(skin);
+  const rig = createRig(skin);
   rig.blinkT = 5;
   rig.lookT = 9;
   rig.root.position.set(TX, T.gy, TZ);
@@ -303,6 +306,7 @@ let entering = false;
 async function enter() {
   if (entering || $('menu').classList.contains('hidden')) return;
   entering = true;
+  await modelsReady;
   sound.init();
   sound.setEnabled(settings.sound);
   if (!W) {
@@ -317,14 +321,14 @@ async function enter() {
     setCharacter();
     W.camRig.target.copy(W.player.pos);
     W.env.update(0, 0, { camera: W.camera.position, player: W.player.pos });
-    progress(0.6, 'Compiling shaders…');
+    progress(0.6, 'Đang chuẩn bị đồ hoạ…');
     await frame();
     try {
       await renderer.compileAsync(W.scene, W.camera);
     } catch {
       renderer.compile(W.scene, W.camera);
     }
-    progress(1, 'Ready');
+    progress(1, 'Sẵn sàng');
     await frame();
     $('loading').classList.add('hidden');
   } else {
@@ -355,10 +359,10 @@ function updateQuest() {
   const next = nextReward();
   if (next) {
     const prev = REWARDS.filter((r) => r.at <= settings.mice).reduce((a, r) => Math.max(a, r.at), 0);
-    $('q-goal').innerHTML = `Next: <b>${next.name}</b> at ${next.at} mice`;
+    $('q-goal').innerHTML = `Tiếp theo: <b>${next.name}</b> ở mốc ${next.at} con`;
     $('q-fill').style.width = `${((settings.mice - prev) / (next.at - prev)) * 100}%`;
   } else {
-    $('q-goal').innerHTML = 'Everything unlocked — keep hunting!';
+    $('q-goal').innerHTML = 'Đã mở khoá tất cả — săn tiếp nào!';
     $('q-fill').style.width = '100%';
   }
 }
@@ -388,11 +392,11 @@ function modal(title, html, buttons) {
 
 function showQuest() {
   const items = REWARDS.map((r) => `<li class="${settings.mice >= r.at ? 'done' : ''}"><span>${settings.mice >= r.at ? '✓' : r.at}</span>
-    <div><b>${r.name}</b><small>${r.kind === 'wings' ? 'New wings' : 'New cat'} · ${r.how}</small></div></li>`).join('');
-  modal('Mouse hunt 🐭', `<p>Mice are hiding in the meadow and around town. <b>Left-click to pounce</b> — every mouse you catch is 1 point.</p>
+    <div><b>${r.name}</b><small>${r.kind === 'wings' ? 'Cánh mới' : 'Mèo mới'} · ${r.how}</small></div></li>`).join('');
+  modal('Săn chuột 🐭', `<p>Chuột đang trốn trong đồng cỏ và quanh thị trấn. <b>Bấm chuột trái để vồ</b> — mỗi con bắt được là 1 điểm.</p>
     <ul class="rewards">${items}</ul>
-    <p class="muted">Click the game to steer the camera with your mouse · Esc frees the cursor · Q shows this again.<br>You have caught <b>${settings.mice}</b> so far.</p>`,
-  [['Start hunting', null, true]]);
+    <p class="muted">Bấm vào game để xoay camera bằng chuột · Esc để thả con trỏ · Q để xem lại bảng này.<br>Bạn đã bắt được <b>${settings.mice}</b> con.</p>`,
+  [['Bắt đầu săn', null, true]]);
 }
 
 function onCatch(m) {
@@ -408,18 +412,18 @@ function onCatch(m) {
   if (r) {
     sound.unlock();
     setTimeout(() => {
-      modal(`Unlocked: ${r.name}!`, `<p>You caught <b>${r.at}</b> mice. ${r.kind === 'wings' ? 'Your new wings are ready.' : 'A new cat joined the meadow.'}</p><p class="muted">${r.how}</p>`,
-        [[`Use ${r.name} now`, () => {
+      modal(`Đã mở khoá: ${r.name}!`, `<p>Bạn đã bắt được <b>${r.at}</b> con chuột. ${r.kind === 'wings' ? 'Đôi cánh mới đã sẵn sàng.' : 'Có thêm một chú mèo mới.'}</p><p class="muted">${r.how}</p>`,
+        [[`Dùng ${r.name} ngay`, () => {
           if (r.kind === 'wings') settings.wings = r.id;
           else settings.skin = r.id;
           save();
           setCharacter();
           markSelected();
           renderWingThumbs();
-        }, true], ['Later', null, false]]);
+        }, true], ['Để sau', null, false]]);
     }, 500);
   } else {
-    toast(nextReward() ? `${settings.mice} / ${nextReward().at} mice` : `${settings.mice} mice caught`);
+    toast(nextReward() ? `${settings.mice} / ${nextReward().at} con chuột` : `Đã bắt ${settings.mice} con chuột`);
   }
 }
 
@@ -449,7 +453,7 @@ $('opt-sound').addEventListener('click', (e) => {
   save();
   sound.init();
   sound.setEnabled(settings.sound);
-  e.target.textContent = settings.sound ? 'On' : 'Off';
+  e.target.textContent = settings.sound ? 'Bật' : 'Tắt';
   e.target.blur();
 });
 $('opt-skins').addEventListener('click', (e) => { e.target.blur(); openMenu(); });
@@ -457,8 +461,8 @@ $('share').addEventListener('click', async (e) => {
   e.target.blur();
   const url = location.href.split('#')[0];
   try {
-    if (navigator.share) await navigator.share({ title: 'Cat Simulator', url });
-    else { await navigator.clipboard.writeText(url); toast('Link copied'); }
+    if (navigator.share) await navigator.share({ title: 'Mèo Simulator', url });
+    else { await navigator.clipboard.writeText(url); toast('Đã sao chép link'); }
   } catch { /* share cancelled */ }
 });
 
@@ -620,7 +624,9 @@ function showDebug() {
 buildMenu();
 applySettings();
 requestAnimationFrame(tick);
-renderCatThumbs().then(renderWingThumbs);
+// 3D cat models load first; if they can't, the procedural cats stand in
+const modelsReady = loadCatModels().catch((e) => console.warn('Cat models unavailable, using procedural cats', e));
+modelsReady.then(() => renderCatThumbs()).then(renderWingThumbs);
 
 // debugging hook: catsim.advance(seconds, keys) runs the simulation with
 // fixed steps (useful when the tab is throttled in the background).

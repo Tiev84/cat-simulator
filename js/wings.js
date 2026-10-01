@@ -3,13 +3,13 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { damp, lerp, clamp } from './noise.js';
 
 export const WINGS = [
-  { id: 'angel', name: 'Angel wings', badge: 'DEFAULT', desc: 'Feathered wings with a brisk, lively beat.', colors: ['#efe9dd', '#f8f5ee', '#ffffff'], freq: 2.4, rough: 0.8 },
-  { id: 'angel-soft', name: 'Angel wings (soft)', badge: '', desc: 'The same feathers, a slower and softer beat.', colors: ['#efe9dd', '#f8f5ee', '#ffffff'], freq: 1.35, amp: 0.8, rough: 0.8 },
-  { id: 'raven', name: 'Raven wings', badge: 'GENERATED', desc: 'Blue-black feathers with a cold sheen.', colors: ['#262b42', '#151a2a', '#0a0c15'], freq: 2.0, rough: 0.32, metal: 0.4, env: 0.9 },
-  { id: 'demon', name: 'Demon wings', badge: 'GENERATED', desc: 'Crimson fading to black, heavy and slow.', colors: ['#a8121c', '#4c070c', '#120304'], freq: 1.05, amp: 1.1, rough: 0.55, length: 1.15 },
-  { id: 'golden', name: 'Golden wings', badge: 'GENERATED', desc: 'Polished gold feathers.', colors: ['#ffd978', '#e6aa3a', '#b47c1e'], freq: 1.9, rough: 0.3, metal: 0.85, env: 1.2, glow: 0.03 },
-  { id: 'phoenix', name: 'Phoenix wings', badge: 'GENERATED', desc: 'Fire from root to tip — they glow in the dark.', colors: ['#ffeb8f', '#ff8a1c', '#d5230b'], freq: 1.6, rough: 0.6, glow: 0.45 },
-  { id: 'helicopter', kind: 'rotor', name: 'Helicopter rotor', badge: 'UNLOCK', unlock: 5, desc: 'Spin up and lift off. Helicopter, helicopter!' },
+  { id: 'angel', name: 'Cánh thiên thần', badge: 'DEFAULT', desc: 'Cánh lông vũ trắng, vỗ nhanh nhẹn.', colors: ['#efe9dd', '#f8f5ee', '#ffffff'], freq: 2.4, rough: 0.8 },
+  { id: 'angel-soft', name: 'Cánh thiên thần (êm)', badge: '', desc: 'Cùng bộ lông vũ, vỗ chậm và nhẹ hơn.', colors: ['#efe9dd', '#f8f5ee', '#ffffff'], freq: 1.35, amp: 0.8, rough: 0.8 },
+  { id: 'raven', name: 'Cánh quạ', badge: 'GENERATED', desc: 'Lông đen ánh xanh lạnh lẽo.', colors: ['#262b42', '#151a2a', '#0a0c15'], freq: 2.0, rough: 0.32, metal: 0.4, env: 0.9 },
+  { id: 'demon', name: 'Cánh quỷ', badge: 'GENERATED', desc: 'Đỏ thẫm chuyển sang đen, vỗ nặng và chậm.', colors: ['#a8121c', '#4c070c', '#120304'], freq: 1.05, amp: 1.1, rough: 0.55, length: 1.15 },
+  { id: 'golden', name: 'Cánh vàng', badge: 'GENERATED', desc: 'Lông vũ vàng óng ánh.', colors: ['#ffd978', '#e6aa3a', '#b47c1e'], freq: 1.9, rough: 0.3, metal: 0.85, env: 1.2, glow: 0.03 },
+  { id: 'phoenix', name: 'Cánh phượng hoàng', badge: 'GENERATED', desc: 'Lửa từ gốc tới ngọn, phát sáng trong đêm.', colors: ['#ffeb8f', '#ff8a1c', '#d5230b'], freq: 1.6, rough: 0.6, glow: 0.45 },
+  { id: 'helicopter', kind: 'rotor', name: 'Cánh quạt trực thăng', badge: 'UNLOCK', unlock: 5, desc: 'Quạt quay vù vù rồi cất cánh. Helicopter, helicopter!' },
 ];
 
 // Tom ignores the wing choice: he always flies with his bat cape.

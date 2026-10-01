@@ -8,50 +8,50 @@ import { clamp, lerp, damp, smoothstep, NOISE_GLSL } from './noise.js';
 // ---------------------------------------------------------------------------
 export const SKINS = [
   {
-    id: 'ginger', name: 'Ginger', badge: 'DEFAULT', kind: 'quad', shape: 'kitten',
-    desc: 'A curious orange tabby kitten, tail held high.',
+    id: 'ginger', name: 'Mèo Cam', badge: 'DEFAULT', kind: 'quad', shape: 'kitten',
+    desc: 'Mèo mướp cam trắng tò mò, đuôi dựng cao.',
     base: '#dc8a3c', dark: '#b2601f', white: '#f5ddb4', stripes: 0.85, stripeFreq: 36, shade: 0.14,
     whites: { chest: 1, muzzle: 1, belly: 1 }, eye: '#a8a33c', nose: '#d68e86', ear: '#eaa59c', meow: 1.3,
   },
   {
-    id: 'midnight', name: 'Midnight', badge: 'GENERATED', kind: 'quad', shape: 'kitten',
-    desc: 'Black from ears to tail. Eyes glow at night.',
+    id: 'midnight', name: 'Mèo Mun', badge: 'GENERATED', kind: 'quad', shape: 'kitten',
+    desc: 'Đen tuyền từ tai tới đuôi, bí ẩn như màn đêm.',
     base: '#19191c', dark: '#101012', white: '#19191c', stripes: 0, shade: 0.05, roughness: 0.5,
     whites: {}, eye: '#cdbf3e', nose: '#2c2426', ear: '#4b3537', meow: 1.15, glowEyes: 1,
   },
   {
-    id: 'tuxedo', name: 'Tuxedo', badge: 'GENERATED', kind: 'quad', shape: 'kitten',
-    desc: 'Formal black coat, white bib and four white socks.',
+    id: 'tuxedo', name: 'Mèo Tuxedo', badge: 'GENERATED', kind: 'quad', shape: 'kitten',
+    desc: 'Áo khoác đen lịch lãm với yếm và tất trắng.',
     base: '#161618', dark: '#101012', white: '#f1f0ec', stripes: 0, shade: 0.05, roughness: 0.6,
     whites: { chest: 1.05, muzzle: 1, belly: 1, socks: 0.075 }, eye: '#d3a63a', nose: '#e59ba1', ear: '#e7a7a6', meow: 1.2,
   },
   {
-    id: 'chonky', name: 'Chonky', badge: 'CHONK', kind: 'quad', shape: 'chonk',
-    desc: 'A round grey tabby. Short legs, big heart, slower pace.',
+    id: 'chonky', name: 'Mèo Ú', badge: 'CHONK', kind: 'quad', shape: 'chonk',
+    desc: 'Mèo xám tròn ủm. Bụng to, tim to, đi chậm rãi.',
     base: '#7a736c', dark: '#4a443e', white: '#e6e0d6', stripes: 0.8, stripeFreq: 30, shade: 0.12,
     whites: { socks: 0.04, muzzle: 0.75, chest: 0.55 }, eye: '#7b98a0', nose: '#b98a80', ear: '#c99a92', meow: 0.8,
   },
   {
-    id: 'buff', name: 'Buff', badge: 'MEME', kind: 'biped', shape: 'buff',
-    desc: 'Walks on two legs. Never skips arm day. Hold E to flex.',
+    id: 'buff', name: 'Mèo Lực Sĩ', badge: 'MEME', kind: 'biped', shape: 'buff',
+    desc: 'Đi bằng hai chân, chưa bỏ buổi tập tay nào. Giữ E để gồng cơ.',
     base: '#ecdcc3', dark: '#d8c3a0', white: '#f7eedf', stripes: 0, shade: 0.1,
     whites: { muzzle: 1 }, eye: '#3e2c22', nose: '#e2a29d', ear: '#eab0a8', meow: 0.62,
   },
   {
     id: 'maxwell', name: 'Maxwell', badge: 'MEME', kind: 'loaf',
-    desc: 'A low-poly black-and-white loaf. Hold E to spin.',
+    desc: 'Ổ bánh mì đen trắng huyền thoại. Giữ E để xoay và nhảy.',
     base: '#141415', dark: '#101011', white: '#efefec', stripes: 0, shade: 0.04, roughness: 0.65, flat: true,
     whites: { chest: 1, muzzle: 1 }, eye: '#b7c46c', nose: '#1f1a1b', ear: '#3a2b2c', meow: 1.0, whisker: '#ffffff',
   },
   {
-    id: 'oiia', name: 'OIIA Cat', badge: 'UNLOCK', kind: 'quad', shape: 'oiia', hold: 'spin', unlock: 15,
-    desc: 'The spinning meme cat. Hold E: oiia oiia!',
+    id: 'oiia', name: 'Mèo OIIA', badge: 'UNLOCK', kind: 'quad', shape: 'oiia', hold: 'spin', unlock: 15,
+    desc: 'Chú mèo meme xoay vòng. Giữ E: oiia oiia!',
     base: '#7f776d', dark: '#4a443d', white: '#ebe5da', stripes: 0.85, stripeFreq: 32, shade: 0.12,
     whites: { socks: 0.045, muzzle: 0.8, chest: 0.6 }, eye: '#6b8791', nose: '#c08f86', ear: '#cfa098', meow: 1.05,
   },
   {
-    id: 'tom', name: 'Tom', badge: 'UNLOCK', kind: 'biped', shape: 'tom', unlock: 10,
-    desc: 'The classic cartoon cat. Hold E to sneak; wings become his bat cape.',
+    id: 'tom', name: 'Mèo Tom', badge: 'UNLOCK', kind: 'biped', shape: 'tom', unlock: 10,
+    desc: 'Chú mèo hoạt hình kinh điển. Giữ E để rón rén, cánh thành áo choàng dơi.',
     base: '#7fa3d3', dark: '#769bcb', white: '#f3f4f7', stripes: 0, shade: 0.06, toon: true,
     whites: { chest: 1, muzzle: 1, paws: 1, socks: 0.11 }, eye: '#f3ec9a', iris: '#2fb54a', nose: '#1d1c22', ear: '#e9849f', meow: 0.9, whisker: '#25262c',
   },
@@ -510,7 +510,7 @@ function buildToonHead(parent, mats, H) {
 // ---------------------------------------------------------------------------
 // Base rig with shared idle behaviour
 // ---------------------------------------------------------------------------
-class Rig {
+export class Rig {
   constructor(skin) {
     this.skin = skin;
     this.mats = makeMats(skin);
@@ -597,8 +597,8 @@ const SHAPES = {
   },
 };
 
-const WALK_OFF = [0.25, 0.75, 0.0, 0.5]; // FL FR BL BR
-const RUN_OFF = [0.0, 0.12, 0.5, 0.62];
+export const WALK_OFF = [0.25, 0.75, 0.0, 0.5]; // FL FR BL BR
+export const RUN_OFF = [0.0, 0.12, 0.5, 0.62];
 
 class QuadRig extends Rig {
   constructor(skin) {
