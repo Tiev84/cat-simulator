@@ -5,7 +5,7 @@ import { Terrain } from './terrain.js';
 import { Grass } from './grass.js';
 import { Props } from './props.js';
 import { SKINS } from './cat.js';
-import { loadCatModels, createRig } from './models.js';
+import { loadCatModels, createRig, createGoats } from './models.js';
 import { WINGS, CAPE, createWings, setWingEnvironment, getWingEnvironment } from './wings.js';
 import { Towns } from './town.js';
 import { Mice } from './mice.js';
@@ -24,24 +24,27 @@ const QUALITY = {
   high: { px: 1.5, shadow: 2048, ext: 14, near: 140000, far: 75000 },
   ultra: { px: 2, shadow: 4096, ext: 16, near: 200000, far: 110000 },
 };
-const MEOW_TEXT = { ginger: 'meo!', midnight: 'meo', tuxedo: 'meo!', chonky: 'mrrrp', buff: 'MEO.', maxwell: 'meo?', tom: 'MEOWWW!', oiia: 'oiia!' };
+const MEOW_TEXT = { ronaldo: 'SIUUU!', messi: '¿Qué mirás, bobo?', ginger: 'meo!', midnight: 'meo', tuxedo: 'meo!', chonky: 'mrrrp', buff: 'MEO.', maxwell: 'meo?', tom: 'MEOWWW!', oiia: 'oiia!' };
 const BADGES = { DEFAULT: 'MẶC ĐỊNH', GENERATED: 'PHỐI MÀU', CHONK: 'MẬP', MEME: 'MEME', UNLOCK: 'MỞ KHOÁ' };
-const HOLD = { groom: 'liếm lông', flex: 'gồng cơ', sneak: 'rón rén', spin: 'xoay' };
+const HOLD = { groom: 'liếm lông', flex: 'gồng cơ', sneak: 'rón rén', spin: 'xoay', celebrate: 'ăn mừng' };
 
 // Catching mice unlocks these.
 const REWARDS = [
   { at: 5, kind: 'wings', id: 'helicopter', name: 'Cánh quạt trực thăng', how: 'Bấm F để quạt quay và cất cánh.' },
   { at: 10, kind: 'skin', id: 'tom', name: 'Mèo Tom', how: 'Bật cánh (F) là Tom bay bằng áo choàng dơi.' },
   { at: 15, kind: 'skin', id: 'oiia', name: 'Mèo OIIA', how: 'Giữ E để nằm ổ bánh mì và xoay tít: oiia oiia!' },
-];
+  { at: 7, track: 'goats', kind: 'skin', id: 'ronaldo', name: 'Ronaldo', how: 'Bấm E: SIUUU! (giữ E để ăn mừng liên tục)' },
+  { at: 10, track: 'goats', kind: 'skin', id: 'messi', name: 'Messi', how: 'Bấm E: ¿Qué mirás, bobo?' },
+].map((r) => ({ track: 'mice', ...r }));
+const TRACK = { mice: { icon: '🐭', unit: 'con chuột' }, goats: { icon: '🐐', unit: 'con dê' } };
 
 // ---------------------------------------------------------------- settings
 const SAVE_KEY = 'catsim.v1';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { return {}; }
 }
-const settings = Object.assign({ quality: 'medium', weather: 'clear', time: 'cycle', sound: true, skin: 'ginger', wings: 'angel', mice: 0 }, loadSettings());
-const unlocked = (item) => !item || !item.unlock || settings.mice >= item.unlock;
+const settings = Object.assign({ quality: 'medium', weather: 'clear', time: 'cycle', sound: true, skin: 'ginger', wings: 'angel', mice: 0, goats: 0 }, loadSettings());
+const unlocked = (item) => !item || ((!item.unlock || settings.mice >= item.unlock) && (!item.unlockGoats || settings.goats >= item.unlockGoats));
 if (!unlocked(SKINS.find((s) => s.id === settings.skin))) settings.skin = 'ginger';
 if (!unlocked(WINGS.find((w) => w.id === settings.wings))) settings.wings = 'angel';
 if (!QUALITY[settings.quality]) settings.quality = 'medium';
@@ -95,13 +98,14 @@ async function buildWorld(progress) {
   await frame();
   const towns = new Towns(scene);
   const mice = new Mice(scene);
+  const goats = createGoats(scene);
   grassNear.uniforms.uMice.value = mice.push;
   grassFar.uniforms.uMice.value = mice.push;
   const player = new Player();
   const camRig = new CameraRig(camera);
   props.update(player.pos);
   towns.update(player.pos, 0);
-  return { scene, camera, env, terrain, grassNear, grassFar, props, towns, mice, rain, motes, butterflies, text, player, camRig, zzzT: 0, catPush: new THREE.Vector3(), hintT: 0, wasFlying: false };
+  return { scene, camera, env, terrain, grassNear, grassFar, props, towns, mice, goats, rain, motes, butterflies, text, player, camRig, zzzT: 0, catPush: new THREE.Vector3(), hintT: 0, wasFlying: false };
 }
 
 function applyQuality() {
@@ -157,11 +161,13 @@ function card(item, group, onPick) {
   b.dataset.id = item.id;
   const badge = item.badge ? `<span class="badge ${item.badge === 'DEFAULT' ? 'default' : ''}">${BADGES[item.badge] || item.badge}</span>` : '';
   b.innerHTML = `<img class="thumb" alt="" /><span class="check"></span>
-    ${item.unlock ? `<span class="lock">🔒 Bắt ${item.unlock} con chuột</span>` : ''}
+    ${item.unlock ? `<span class="lock">🔒 Bắt ${item.unlock} con chuột</span>` : ''}${item.unlockGoats ? `<span class="lock">🔒 Bắt ${item.unlockGoats} con dê</span>` : ''}
     <div class="meta"><div class="name">${item.name}${badge}</div><div class="desc">${item.desc}</div></div>`;
   b.addEventListener('click', () => {
     if (!unlocked(item)) {
-      toast(`Bắt ${item.unlock} con chuột để mở khoá ${item.name} (bạn đang có ${settings.mice})`);
+      toast(item.unlockGoats
+        ? `Bắt ${item.unlockGoats} con dê để mở khoá ${item.name} (bạn đang có ${settings.goats})`
+        : `Bắt ${item.unlock} con chuột để mở khoá ${item.name} (bạn đang có ${settings.mice})`);
       return;
     }
     onPick(item.id);
@@ -350,20 +356,23 @@ async function enter() {
 // ---------------------------------------------------------------- quests
 let questShown = false;
 
-function nextReward() {
-  return REWARDS.find((r) => settings.mice < r.at);
+function nextReward(track = 'mice') {
+  return REWARDS.find((r) => r.track === track && settings[track] < r.at);
 }
 
 function updateQuest() {
-  $('q-count').textContent = settings.mice;
-  const next = nextReward();
-  if (next) {
-    const prev = REWARDS.filter((r) => r.at <= settings.mice).reduce((a, r) => Math.max(a, r.at), 0);
-    $('q-goal').innerHTML = `Tiếp theo: <b>${next.name}</b> ở mốc ${next.at} con`;
-    $('q-fill').style.width = `${((settings.mice - prev) / (next.at - prev)) * 100}%`;
-  } else {
-    $('q-goal').innerHTML = 'Đã mở khoá tất cả — săn tiếp nào!';
-    $('q-fill').style.width = '100%';
+  for (const track of ['mice', 'goats']) {
+    const n = settings[track];
+    $(`q-${track}`).textContent = n;
+    const next = nextReward(track);
+    if (next) {
+      const prev = REWARDS.filter((r) => r.track === track && r.at <= n).reduce((a, r) => Math.max(a, r.at), 0);
+      $(`q-${track}-goal`).innerHTML = `Tiếp: <b>${next.name}</b> ở mốc ${next.at}`;
+      $(`q-${track}-fill`).style.width = `${((n - prev) / (next.at - prev)) * 100}%`;
+    } else {
+      $(`q-${track}-goal`).innerHTML = 'Đã mở khoá hết!';
+      $(`q-${track}-fill`).style.width = '100%';
+    }
   }
 }
 
@@ -391,28 +400,32 @@ function modal(title, html, buttons) {
 }
 
 function showQuest() {
-  const items = REWARDS.map((r) => `<li class="${settings.mice >= r.at ? 'done' : ''}"><span>${settings.mice >= r.at ? '✓' : r.at}</span>
-    <div><b>${r.name}</b><small>${r.kind === 'wings' ? 'Cánh mới' : 'Mèo mới'} · ${r.how}</small></div></li>`).join('');
-  modal('Săn chuột 🐭', `<p>Chuột đang trốn trong đồng cỏ và quanh thị trấn. <b>Bấm chuột trái để vồ</b> — mỗi con bắt được là 1 điểm.</p>
+  const items = REWARDS.map((r) => {
+    const done = settings[r.track] >= r.at;
+    return `<li class="${done ? 'done' : ''}"><span>${done ? '✓' : TRACK[r.track].icon + r.at}</span>
+    <div><b>${r.name}</b><small>${r.kind === 'wings' ? 'Cánh mới' : 'Nhân vật mới'} · ${r.how}</small></div></li>`;
+  }).join('');
+  modal('Săn chuột & săn dê', `<p>Chuột trốn trong đồng cỏ và quanh thị trấn, dê thì gặm cỏ ngoài đồng. <b>Bấm chuột trái để vồ</b> — mỗi con bắt được là 1 điểm.</p>
     <ul class="rewards">${items}</ul>
-    <p class="muted">Bấm vào game để xoay camera bằng chuột · Esc để thả con trỏ · Q để xem lại bảng này.<br>Bạn đã bắt được <b>${settings.mice}</b> con.</p>`,
+    <p class="muted">Bấm vào game để xoay camera bằng chuột · Esc để thả con trỏ · Q để xem lại bảng này.<br>Bạn đã bắt được <b>${settings.mice}</b> con chuột và <b>${settings.goats}</b> con dê.</p>`,
   [['Bắt đầu săn', null, true]]);
 }
 
-function onCatch(m) {
-  settings.mice += 1;
+function onCatch(m, track = 'mice') {
+  settings[track] += 1;
   save();
+  if (track === 'goats') sound.bleat();
   sound.caught();
   const p = m.pos.clone();
-  p.y += 0.6;
-  W.text.spawn('+1 🐭', p, { size: 0.7, life: 1.4, rise: 0.6, color: '#ffe39a' });
+  p.y += track === 'goats' ? 1.4 : 0.6;
+  W.text.spawn(`+1 ${TRACK[track].icon}`, p, { size: track === 'goats' ? 1.0 : 0.7, life: 1.4, rise: 0.6, color: '#ffe39a' });
   updateQuest();
   refreshLocks();
-  const r = REWARDS.find((x) => x.at === settings.mice);
+  const r = REWARDS.find((x) => x.track === track && x.at === settings[track]);
   if (r) {
     sound.unlock();
     setTimeout(() => {
-      modal(`Đã mở khoá: ${r.name}!`, `<p>Bạn đã bắt được <b>${r.at}</b> con chuột. ${r.kind === 'wings' ? 'Đôi cánh mới đã sẵn sàng.' : 'Có thêm một chú mèo mới.'}</p><p class="muted">${r.how}</p>`,
+      modal(`Đã mở khoá: ${r.name}!`, `<p>Bạn đã bắt được <b>${r.at}</b> ${TRACK[track].unit}. ${r.kind === 'wings' ? 'Đôi cánh mới đã sẵn sàng.' : 'Có thêm một nhân vật mới.'}</p><p class="muted">${r.how}</p>`,
         [[`Dùng ${r.name} ngay`, () => {
           if (r.kind === 'wings') settings.wings = r.id;
           else settings.skin = r.id;
@@ -423,7 +436,8 @@ function onCatch(m) {
         }, true], ['Để sau', null, false]]);
     }, 500);
   } else {
-    toast(nextReward() ? `${settings.mice} / ${nextReward().at} con chuột` : `Đã bắt ${settings.mice} con chuột`);
+    const next = nextReward(track);
+    toast(next ? `${settings[track]} / ${next.at} ${TRACK[track].unit}` : `Đã bắt ${settings[track]} ${TRACK[track].unit}`);
   }
 }
 
@@ -526,7 +540,7 @@ function step(dt) {
     towns: W.towns,
     sound,
     onMeow: () => {
-      sound.meow(rig.skin.meow, rig.skin.id === 'tom' ? 'tom' : 'meow');
+      sound.meow(rig.skin.meow, rig.skin.voice || 'meow');
       const p = rig.headWorld(new THREE.Vector3());
       p.y += rig.cfg.camH * 0.55 + 0.12;
       W.text.spawn(MEOW_TEXT[rig.skin.id] || 'meow', p, { size: 0.55, life: 1.3, rise: 0.35 });
@@ -535,7 +549,7 @@ function step(dt) {
   rig.root.position.copy(player.pos);
   rig.root.rotation.y = player.heading + (rig.spinAngle || 0);
   wings.update(dt, { flyW: player.w.flyW, vy: player.vy, speed: player.speed, time, night: env.night, scale: rig.cfg.wingScale, halfWidth: rig.cfg.halfWidth });
-  rig.update(dt, { ...player.w, speed: player.speed, vy: player.vy, slope: player.slope, turn: player.turn, time, night: env.night, wingFlap: wings.flapAngle || 0 });
+  rig.update(dt, { ...player.w, speed: player.speed, vy: player.vy, slope: player.slope, turn: player.turn, time, night: env.night, wingFlap: wings.flapAngle || 0, meowT: player.meowT });
   camRig.update(dt, input, player, rig);
   W.towns.fixCamera(camRig.target, camera.position);
   camera.lookAt(camRig.target);
@@ -561,16 +575,30 @@ function step(dt) {
     const reach = new THREE.Vector3(Math.sin(player.heading), 0, Math.cos(player.heading)).multiplyScalar(rig.cfg.radius + 0.25).add(player.pos);
     const caught = W.mice.tryCatch(reach, 0.85);
     if (caught) onCatch(caught);
+    const goat = W.goats && W.goats.tryCatch(reach, 0.85);
+    if (goat) onCatch(goat, 'goats');
+  }
+  if (W.goats) {
+    W.goats.update(dt, time, player, {
+      props: W.props,
+      sound,
+      onAlert: (m, h) => {
+        const p = m.pos.clone();
+        p.y += h * 1.15;
+        W.text.spawn('!', p, { size: 0.7, life: 0.8, rise: 0.4, color: '#fff2b0' });
+      },
+    });
   }
   W.hintT -= dt;
   if (W.hintT < 0) {
     W.hintT = 0.25;
-    const n = W.mice.nearest(player.pos);
-    if (n) {
+    for (const [track, list] of [['mice', W.mice], ['goats', W.goats]]) {
+      const n = list && list.nearest(player.pos);
+      if (!n) continue;
       const ang = Math.atan2(n.mouse.pos.x - player.pos.x, n.mouse.pos.z - player.pos.z);
       const rel = ang - (camRig.moveYaw + Math.PI);
-      $('q-arrow').style.transform = `rotate(${(-rel * 180) / Math.PI}deg)`;
-      $('q-dist').textContent = `${Math.round(n.dist)} m`;
+      $(`q-${track}-arrow`).style.transform = `rotate(${(-rel * 180) / Math.PI}deg)`;
+      $(`q-${track}-dist`).textContent = `${Math.round(n.dist)} m`;
     }
   }
 

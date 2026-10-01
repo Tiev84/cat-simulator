@@ -66,6 +66,8 @@ export class Sound {
     this.clip('oiia');
     this.clip('meow');
     this.clip('tom');
+    this.clip('ronaldo');
+    this.clip('messi');
   }
 
   loop(buffer, filters) {
@@ -136,13 +138,14 @@ export class Sound {
     if (!this.ok()) return;
     const buf = this.clip(voice) || this.clip('meow');
     if (buf) {
-      const segs = buf.segs && buf.segs.length ? buf.segs : [buf.trim || [0, buf.duration]];
+      // the meow file holds several meows: pick one; voice lines play whole
+      const segs = voice === 'meow' && buf.segs && buf.segs.length ? buf.segs : [buf.trim || [0, buf.duration]];
       const [a, b] = segs[Math.floor(Math.random() * segs.length)];
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
-      src.playbackRate.value = voice === 'tom' ? 1 : Math.sqrt(pitch) * (0.95 + Math.random() * 0.1);
+      src.playbackRate.value = voice !== 'meow' ? 1 : Math.sqrt(pitch) * (0.95 + Math.random() * 0.1);
       const g = this.ctx.createGain();
-      g.gain.value = voice === 'tom' ? 1.6 : 1.4;
+      g.gain.value = voice === 'meow' ? 1.4 : 1.6;
       src.connect(g).connect(this.master);
       if (this.voiceSrc) try { this.voiceSrc.stop(); } catch { /* ended */ }
       src.start(0, a, b - a);
@@ -282,6 +285,43 @@ export class Sound {
       o.start(t);
       o.stop(t + 0.08);
     }
+  }
+
+  // goat "mehhh": a nasal buzzy vowel with a fast tremolo
+  bleat() {
+    if (!this.ok()) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    const f0 = 330 + Math.random() * 80;
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.linearRampToValueAtTime(f0 * 0.9, t + 0.6);
+    const trem = ctx.createOscillator();
+    trem.frequency.value = 11;
+    const tremG = ctx.createGain();
+    tremG.gain.value = 0.35;
+    const amp = ctx.createGain();
+    amp.gain.value = 0.6;
+    trem.connect(tremG).connect(amp.gain);
+    const f1 = ctx.createBiquadFilter();
+    f1.type = 'bandpass';
+    f1.frequency.value = 600;
+    f1.Q.value = 4;
+    const f2 = ctx.createBiquadFilter();
+    f2.type = 'bandpass';
+    f2.frequency.value = 1800;
+    f2.Q.value = 6;
+    const g = ctx.createGain();
+    o.connect(amp);
+    amp.connect(f1).connect(g);
+    amp.connect(f2).connect(g);
+    g.connect(this.master);
+    this.env(g, t, 0.04, 0.35, 0.65);
+    o.start(t);
+    trem.start(t);
+    o.stop(t + 0.8);
+    trem.stop(t + 0.8);
   }
 
   pounce() {

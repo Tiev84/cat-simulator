@@ -215,31 +215,38 @@ export class FloatText {
     const key = text + color;
     if (this.cache[key]) return this.cache[key];
     const c = document.createElement('canvas');
-    c.width = 256;
+    const font = '600 64px Inter, system-ui, sans-serif';
+    const probe = c.getContext('2d');
+    probe.font = font;
+    // wide enough for long lines like "¿Qué mirás, bobo?"
+    c.width = Math.max(256, Math.ceil(probe.measureText(text).width / 64) * 64 + 64);
     c.height = 128;
     const g = c.getContext('2d');
-    g.font = '600 64px Inter, system-ui, sans-serif';
+    g.font = font;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.lineWidth = 10;
     g.strokeStyle = 'rgba(20,24,16,0.55)';
-    g.strokeText(text, 128, 64);
+    g.strokeText(text, c.width / 2, 64);
     g.fillStyle = color;
-    g.fillText(text, 128, 64);
+    g.fillText(text, c.width / 2, 64);
     const t = new THREE.CanvasTexture(c);
+    t.userData.aspect = c.width / c.height;
     t.colorSpace = THREE.SRGBColorSpace;
     this.cache[key] = t;
     return t;
   }
 
   spawn(text, pos, { color = '#fff6e0', size = 0.5, life = 1.4, rise = 0.6, drift = 0 } = {}) {
-    const mat = new THREE.SpriteMaterial({ map: this.texture(text, color), transparent: true, depthWrite: false, fog: false });
+    const map = this.texture(text, color);
+    const mat = new THREE.SpriteMaterial({ map, transparent: true, depthWrite: false, fog: false });
     const s = new THREE.Sprite(mat);
     s.position.copy(pos);
-    s.scale.set(size, size * 0.5, 1);
+    const aspect = (map.userData.aspect || 2) / 2;
+    s.scale.set(size * aspect, size * 0.5, 1);
     s.renderOrder = 10;
     this.scene.add(s);
-    this.items.push({ s, life, age: 0, rise, drift, size });
+    this.items.push({ s, life, age: 0, rise, drift, size, aspect });
   }
 
   update(dt) {
@@ -251,7 +258,7 @@ export class FloatText {
       it.s.position.x += Math.sin(it.age * 3) * it.drift * dt;
       it.s.material.opacity = k < 0.15 ? k / 0.15 : 1 - Math.max(0, (k - 0.6) / 0.4);
       const sc = it.size * lerp(0.7, 1.1, Math.min(1, k * 4));
-      it.s.scale.set(sc, sc * 0.5, 1);
+      it.s.scale.set(sc * (it.aspect || 1), sc * 0.5, 1);
       if (k >= 1) {
         this.scene.remove(it.s);
         it.s.material.dispose();

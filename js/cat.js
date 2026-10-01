@@ -50,10 +50,20 @@ export const SKINS = [
     whites: { socks: 0.045, muzzle: 0.8, chest: 0.6 }, eye: '#6b8791', nose: '#c08f86', ear: '#cfa098', meow: 1.05,
   },
   {
-    id: 'tom', name: 'Mèo Tom', badge: 'UNLOCK', kind: 'biped', shape: 'tom', unlock: 10,
+    id: 'tom', name: 'Mèo Tom', badge: 'UNLOCK', kind: 'biped', shape: 'tom', unlock: 10, voice: 'tom',
     desc: 'Chú mèo hoạt hình kinh điển. Giữ E để rón rén, cánh thành áo choàng dơi.',
     base: '#7fa3d3', dark: '#769bcb', white: '#f3f4f7', stripes: 0, shade: 0.06, toon: true,
     whites: { chest: 1, muzzle: 1, paws: 1, socks: 0.11 }, eye: '#f3ec9a', iris: '#2fb54a', nose: '#1d1c22', ear: '#e9849f', meow: 0.9, whisker: '#25262c',
+  },
+  {
+    id: 'ronaldo', name: 'Ronaldo', badge: 'UNLOCK', kind: 'human', shape: 'buff', unlockGoats: 7, voice: 'ronaldo', hold: 'celebrate',
+    desc: 'Không phải mèo, nhưng chạy nhanh nhất đồng cỏ. Bấm E: SIUUU!',
+    base: '#d9b38c', dark: '#c49a72', white: '#ffffff', stripes: 0, shade: 0.1, whites: {}, eye: '#3a2a20', nose: '#c88c7a', ear: '#d9a08c', meow: 1,
+  },
+  {
+    id: 'messi', name: 'Messi', badge: 'UNLOCK', kind: 'human', shape: 'buff', unlockGoats: 10, voice: 'messi', hold: 'celebrate',
+    desc: 'Số 10 Argentina dạo chơi cùng lũ mèo. Bấm E: ¿Qué mirás, bobo?',
+    base: '#d9b38c', dark: '#c49a72', white: '#ffffff', stripes: 0, shade: 0.1, whites: {}, eye: '#3a2a20', nose: '#c88c7a', ear: '#d9a08c', meow: 1,
   },
 ];
 
@@ -1102,7 +1112,7 @@ class LoafRig extends Rig {
 }
 
 export function createCat(skin) {
-  if (skin.kind === 'biped') return new BipedRig(skin);
+  if (skin.kind === 'biped' || skin.kind === 'human') return new BipedRig(skin);
   if (skin.kind === 'loaf') return new LoafRig(skin);
   return new QuadRig(skin);
 }

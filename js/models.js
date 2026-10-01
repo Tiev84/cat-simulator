@@ -1,8 +1,11 @@
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
+import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { Rig, createCat, WALK_OFF, RUN_OFF } from './cat.js';
+import { rigHumanoid, rigQuadruped } from './autorig.js';
+import { HumanRig, Goats, RPM_ROLES } from './people.js';
 import { clamp, lerp, damp } from './noise.js';
 
 // Real 3D cat models (models/). A rigged ginger-and-white cat drives the
@@ -28,6 +31,8 @@ export function loadCatModels() {
     t.colorSpace = THREE.SRGBColorSpace;
     return t;
   };
+  const R = 'models/ronaldo/';
+  const ronTex = ['AvatarBodyMale_Color_1K', 'AvatarHeadMale_Color_1K', 't-shirt_Hakari_Color_1K', 'shorts_Getar_Color_1K', 'sneakers_AZAT_Color_1K', 'AvatarTeeth_Color_1K', 'AvatarEyes_Color_512'];
   loading = Promise.all([
     g.loadAsync('models/cat.glb'),
     f.loadAsync('models/oiia.fbx'),
@@ -35,13 +40,71 @@ export function loadCatModels() {
     tex('models/oiia.jpg'),
     tex('models/maxwell.jpg'),
     tex('models/maxwell_whiskers.png'),
-  ]).then(([cat, oiia, mx, oiiaTex, mxTex, mxWh]) => {
-    Object.assign(A, { cat, oiia, oiiaTex, mx, mxTex, mxWh, ready: true });
+    new OBJLoader(manager).loadAsync('models/tom.obj'),
+    tex('models/tom.png'),
+    g.loadAsync('models/goat.glb'),
+    tex('models/goat.jpg'),
+    g.loadAsync('models/messi.glb'),
+    f.loadAsync(R + 'ronaldo.fbx'),
+    Promise.all(ronTex.map((n) => tex(R + n + '.jpg'))),
+  ]).then(([cat, oiia, mx, oiiaTex, mxTex, mxWh, tomObj, tomTex, goat, goatTex, messi, ron, ronMaps]) => {
+    Object.assign(A, { cat, oiia, oiiaTex, mx, mxTex, mxWh });
+    // Tom (static T-pose game model) and Messi get a skeleton generated here
+    tomObj.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ map: tomTex, roughness: 0.7 }); });
+    A.tom = rigHumanoid(tomObj, 1.4);
+    messi.scene.traverse((o) => { if (o.isMesh) { o.material.roughness = 0.75; o.material.metalness = 0; } });
+    A.messi = rigHumanoid(messi.scene, 2.2);
+    goatTex.flipY = false;
+    goat.scene.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ map: goatTex, roughness: 0.95, side: THREE.DoubleSide }); });
+    A.goat = rigQuadruped(goat.scene, 1.15);
+    A.ronaldo = prepRonaldo(ron, Object.fromEntries(ronTex.map((n, i) => [n, ronMaps[i]])));
+    A.ready = true;
   });
   return loading;
 }
 
+// Ronaldo comes rigged (Ready Player Me skeleton); give him his textures and
+// measure the landmarks the human rig needs.
+function prepRonaldo(ron, maps) {
+  const pick = {
+    AvatarBody: 'AvatarBodyMale_Color_1K', AvatarHead: 'AvatarHeadMale_Color_1K', outfit_top: 't-shirt_Hakari_Color_1K',
+    outfit_bottom: 'shorts_Getar_Color_1K', outfit_shoes: 'sneakers_AZAT_Color_1K', AvatarTeethLower: 'AvatarTeeth_Color_1K',
+    AvatarTeethUpper: 'AvatarTeeth_Color_1K', AvatarLeftEyeball: 'AvatarEyes_Color_512', AvatarRightEyeball: 'AvatarEyes_Color_512',
+  };
+  ron.traverse((o) => {
+    if (!o.isMesh) return;
+    if (/Cornea/.test(o.name)) { o.visible = false; return; }
+    const map = maps[pick[o.name]];
+    o.material = map
+      ? new THREE.MeshStandardMaterial({ map, roughness: 0.75 })
+      : new THREE.MeshStandardMaterial({ color: '#1a1410', roughness: 0.9 });
+  });
+  const H = 2.2;
+  const group = new THREE.Group();
+  group.add(ron);
+  ron.updateMatrixWorld(true);
+  const box = new THREE.Box3().setFromObject(ron);
+  const s = H / (box.max.y - box.min.y);
+  ron.scale.multiplyScalar(s);
+  ron.position.set(-((box.min.x + box.max.x) / 2) * s, -box.min.y * s, -((box.min.z + box.max.z) / 2) * s);
+  group.updateMatrixWorld(true);
+  const bone = (n) => { let b = null; ron.traverse((o) => { if (!b && o.isBone && o.name === n) b = o; }); return b.getWorldPosition(new THREE.Vector3()); };
+  const up = bone('LeftUpLeg'), arm = bone('LeftArm'), hand = bone('LeftHand');
+  return {
+    object: group,
+    roles: RPM_ROLES,
+    meta: { H, crotch: up.y - H * 0.02, shoulderY: arm.y, shoulderX: Math.abs(arm.x), armRest: Math.atan2(hand.y - arm.y, Math.abs(hand.x) - Math.abs(arm.x)), depth: 0, armLen: hand.distanceTo(arm) },
+  };
+}
+
+export function createGoats(scene) {
+  return A.goat ? new Goats(scene, A.goat) : null;
+}
+
 export function createRig(skin) {
+  if (A.ready && skin.id === 'tom') return new HumanRig(skin, A.tom, { walk: 2.0, run: 5.0, jump: 4.6, radius: 0.3, wingScale: A.tom.meta.armLen / 0.62, cape: true, hold: 'sneak' });
+  if (A.ready && skin.id === 'ronaldo') return new HumanRig(skin, A.ronaldo, { walk: 2.4, run: 6.2, jump: 5.2, radius: 0.42, wingScale: 1.9, celebrate: 'siu' });
+  if (A.ready && skin.id === 'messi') return new HumanRig(skin, A.messi, { walk: 2.4, run: 6.4, jump: 5.2, radius: 0.42, wingScale: 1.9, celebrate: 'bobo' });
   if (A.ready) {
     if (LOOKS[skin.id]) return new ModelQuadRig(skin);
     if (skin.id === 'oiia') return new OiiaRig(skin);

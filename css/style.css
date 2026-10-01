@@ -137,7 +137,7 @@ body.hide-ui #hud { display: none; }
 }
 .ghost:hover { background: rgba(224, 194, 122, 0.15); }
 #debug {
-  position: absolute; left: 12px; top: 96px; margin: 0; padding: 8px 10px; font: 11px/1.5 ui-monospace, Menlo, monospace;
+  position: absolute; left: 12px; top: 160px; margin: 0; padding: 8px 10px; font: 11px/1.5 ui-monospace, Menlo, monospace;
   background: rgba(0, 0, 0, 0.55); border-radius: 8px; color: #cfe8b0; white-space: pre;
 }
 #toast {
@@ -166,7 +166,8 @@ body.hide-ui #hud { display: none; }
 .q-goal { margin: 6px 0 7px; }
 .q-goal b { color: var(--gold); font-weight: 600; }
 .q-bar { height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 4px; overflow: hidden; }
-#q-fill { height: 100%; width: 0; background: var(--gold); transition: width 0.4s; }
+.q-fill { height: 100%; width: 0; background: var(--gold); transition: width 0.4s; }
+.q-second { margin-top: 10px; }
 
 .card.locked .thumb { filter: grayscale(0.85) brightness(0.55); }
 .card .lock { display: none; }
