@@ -522,7 +522,7 @@ function step(dt) {
     towns: W.towns,
     sound,
     onMeow: () => {
-      sound.meow(rig.skin.meow);
+      sound.meow(rig.skin.meow, rig.skin.id === 'tom' ? 'tom' : 'meow');
       const p = rig.headWorld(new THREE.Vector3());
       p.y += rig.cfg.camH * 0.55 + 0.12;
       W.text.spawn(MEOW_TEXT[rig.skin.id] || 'meow', p, { size: 0.55, life: 1.3, rise: 0.35 });

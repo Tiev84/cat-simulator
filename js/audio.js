@@ -1,4 +1,36 @@
-// Every sound is synthesized with Web Audio: no audio files to download.
+// Sounds are synthesized with Web Audio, except the optional clips in
+// sounds/ (meow, Tom's scream, the helicopter and OIIA memes).
+
+// Split a clip into its separate sounds (e.g. a file with four meows).
+function segments(buf) {
+  const d = buf.getChannelData(0);
+  const sr = buf.sampleRate;
+  const win = Math.floor(sr * 0.02);
+  const env = [];
+  for (let i = 0; i < d.length; i += win) {
+    let m = 0;
+    for (let j = i; j < Math.min(i + win, d.length); j++) m = Math.max(m, Math.abs(d[j]));
+    env.push(m);
+  }
+  const peak = Math.max(...env);
+  const segs = [];
+  let start = -1;
+  let gap = 0;
+  env.forEach((v, k) => {
+    if (v > peak * 0.08) {
+      if (start < 0) start = k;
+      gap = 0;
+    } else if (start >= 0 && ++gap > 6) {
+      segs.push([start, k - gap + 1]);
+      start = -1;
+      gap = 0;
+    }
+  });
+  if (start >= 0) segs.push([start, env.length]);
+  return segs
+    .filter(([a, b]) => b - a >= 6)
+    .map(([a, b]) => [Math.max(0, a * 0.02 - 0.03), Math.min(buf.duration, b * 0.02 + 0.1)]);
+}
 export class Sound {
   constructor() {
     this.ctx = null;
@@ -32,6 +64,8 @@ export class Sound {
     this.rain = this.loop(this.white, [['highpass', 900, 0.5], ['lowpass', 7000, 0.5]]);
     this.flight = this.loop(this.white, [['bandpass', 700, 0.6]]);
     this.clip('oiia');
+    this.clip('meow');
+    this.clip('tom');
   }
 
   loop(buffer, filters) {
@@ -96,8 +130,25 @@ export class Sound {
     g.gain.exponentialRampToValueAtTime(0.0001, t + a + d);
   }
 
-  meow(pitch = 1) {
+  // Plays a recorded meow when sounds/meow.mp3 (or tom.mp3 for Tom) exists:
+  // one of the separate meows in the file, picked at random, pitched per cat.
+  meow(pitch = 1, voice = 'meow') {
     if (!this.ok()) return;
+    const buf = this.clip(voice) || this.clip('meow');
+    if (buf) {
+      const segs = buf.segs && buf.segs.length ? buf.segs : [buf.trim || [0, buf.duration]];
+      const [a, b] = segs[Math.floor(Math.random() * segs.length)];
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      src.playbackRate.value = voice === 'tom' ? 1 : Math.sqrt(pitch) * (0.95 + Math.random() * 0.1);
+      const g = this.ctx.createGain();
+      g.gain.value = voice === 'tom' ? 1.6 : 1.4;
+      src.connect(g).connect(this.master);
+      if (this.voiceSrc) try { this.voiceSrc.stop(); } catch { /* ended */ }
+      src.start(0, a, b - a);
+      this.voiceSrc = src;
+      return;
+    }
     const ctx = this.ctx;
     const t = ctx.currentTime;
     const dur = 0.55 + Math.random() * 0.2;
@@ -323,6 +374,7 @@ export class Sound {
             while (a < z && Math.abs(d[a]) < 0.02) a++;
             while (z > a && Math.abs(d[z]) < 0.02) z--;
             buf.trim = [a / buf.sampleRate, (z + 1) / buf.sampleRate];
+            buf.segs = segments(buf);
             this.clips[name] = buf;
             return;
           } catch { /* try the next format */ }

@@ -22,6 +22,7 @@ export function createWings(spec) {
 }
 
 let envTexture = null;
+const smoothstep01 = (t) => t * t * (3 - 2 * t);
 export function setWingEnvironment(tex) {
   envTexture = tex;
 }
@@ -198,8 +199,10 @@ export class Wings {
       side.elbow.rotation.y = lerp(0.12, 0, o);
       side.elbow.rotation.z = lerp(0, Math.sin(this.phase - 0.8) * amp * 0.55, o);
     }
-    const s = lerp(0.62, 1, o);
-    this.group.scale.setScalar(s * (st.scale || 1));
+    // F toggles the wings: they unfold out of the back and vanish when put away
+    const grow = smoothstep01(o);
+    this.group.visible = grow > 0.01;
+    this.group.scale.setScalar(Math.max(0.001, grow) * (st.scale || 1));
     this.glow.value = (spec.glow || 0) * (0.5 + st.night * 1.6);
   }
 
@@ -266,6 +269,9 @@ export class Rotor {
 
   update(dt, st) {
     const target = st.flyW > 0.4 ? 30 : 0;
+    this.open = damp(this.open || 0, st.flyW > 0.4 || st.pose === 'spread' ? 1 : 0, 5, dt);
+    const grow = smoothstep01(this.open);
+    this.group.visible = grow > 0.01;
     this.omega = damp(this.omega, target, target > 0 ? 2.2 : 0.7, dt);
     if (this.omega < 0.4 && target === 0) {
       const snap = Math.round(this.angle / ((Math.PI * 2) / 3)) * ((Math.PI * 2) / 3) + Math.PI / 2;
@@ -276,10 +282,11 @@ export class Rotor {
     this.blades.rotation.y = this.angle;
     this.discMat.opacity = clamp((this.omega - 12) / 16, 0, 1) * 0.22;
     this.disc.visible = this.discMat.opacity > 0.01;
-    this.group.scale.setScalar(st.scale || 1);
+    this.group.scale.setScalar(Math.max(0.001, grow) * (st.scale || 1));
   }
 
   prime() {
+    this.open = 1;
     this.omega = 30;
     this.angle = 0.5;
   }
