@@ -1,10 +1,10 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { Rig } from './cat.js';
-import { clamp, lerp, damp, dampAngle, terrainHeight, townMask, roadMask } from './noise.js';
+import { clamp, lerp, damp, dampAngle, terrainHeight } from './noise.js';
 
-// Two-legged characters built from real models (Tom, Ronaldo, Messi) and the
-// goats that roam the meadows.
+// Two-legged characters built from real models: Tom (playable) and the
+// Ronaldo / Messi NPCs that walk around the starting city.
 
 const _q = new THREE.Quaternion();
 const _q2 = new THREE.Quaternion();
@@ -241,133 +241,230 @@ export class HumanRig extends Rig {
 }
 
 // ---------------------------------------------------------------------------
-// Goats: graze in the meadows, trot away from cats.
+// Motion capture for people: Mixamo clips (Idle / Walk / Run from three.js's
+// Soldier) are played on a hidden source skeleton; every frame each bone's
+// rotation relative to the T-pose is copied onto the character's matching
+// bone, relative to that character's own T-pose. This works across rigs
+// whatever their bone axes (Ronaldo's Ready Player Me rig, Messi's auto-rig).
 // ---------------------------------------------------------------------------
-const GOAT_ROLES = ['body', 'neck', 'fl_upper', 'fl_lower', 'fr_upper', 'fr_lower', 'bl_upper', 'bl_lower', 'br_upper', 'br_lower'];
-const _v = new THREE.Vector3();
+const MOCAP = [
+  // role, source bone, Ready Player Me bone, auto-rig bone
+  ['hips', 'Hips', 'Hips', 'hips'],
+  ['spine', 'Spine', 'Spine', 'spine'],
+  ['spine1', 'Spine1', 'Spine1', null],
+  ['chest', 'Spine2', 'Spine2', 'chest'],
+  ['neck', 'Neck', 'Neck', 'neck'],
+  ['head', 'Head', 'Head', 'head'],
+  ['l_shoulder', 'LeftShoulder', 'LeftShoulder', null],
+  ['l_upperArm', 'LeftArm', 'LeftArm', 'l_upperArm'],
+  ['l_foreArm', 'LeftForeArm', 'LeftForeArm', 'l_foreArm'],
+  ['l_hand', 'LeftHand', 'LeftHand', 'l_hand'],
+  ['r_shoulder', 'RightShoulder', 'RightShoulder', null],
+  ['r_upperArm', 'RightArm', 'RightArm', 'r_upperArm'],
+  ['r_foreArm', 'RightForeArm', 'RightForeArm', 'r_foreArm'],
+  ['r_hand', 'RightHand', 'RightHand', 'r_hand'],
+  ['l_thigh', 'LeftUpLeg', 'LeftUpLeg', 'l_thigh'],
+  ['l_shin', 'LeftLeg', 'LeftLeg', 'l_shin'],
+  ['l_foot', 'LeftFoot', 'LeftFoot', 'l_foot'],
+  ['l_toe', 'LeftToeBase', 'LeftToeBase', null],
+  ['r_thigh', 'RightUpLeg', 'RightUpLeg', 'r_thigh'],
+  ['r_shin', 'RightLeg', 'RightLeg', 'r_shin'],
+  ['r_foot', 'RightFoot', 'RightFoot', 'r_foot'],
+  ['r_toe', 'RightToeBase', 'RightToeBase', null],
+];
 
-export class Goats {
-  constructor(scene, src, count = 4) {
-    this.list = [];
-    this.H = src.meta.H;
-    for (let i = 0; i < count; i++) {
-      const space = new THREE.Group();
-      const model = SkeletonUtils.clone(src.object);
+const _w = new THREE.Quaternion();
+const _d = new THREE.Quaternion();
+const _inv = new THREE.Quaternion();
+const _vec = new THREE.Vector3();
+
+function relQuat(obj, root, out) {
+  root.getWorldQuaternion(_inv).invert();
+  obj.getWorldQuaternion(out);
+  return out.premultiply(_inv);
+}
+
+class Mocap {
+  // target: model root; rpm: bone naming; armRest: angle of the arms in the
+  // model's rest pose (0 = T-pose) so A-pose models are lifted to a T first.
+  constructor(soldier, target, rpm, armRest = 0) {
+    this.src = SkeletonUtils.clone(soldier.scene);
+    this.mixer = new THREE.AnimationMixer(this.src);
+    const clip = (n) => soldier.animations.find((a) => a.name === n);
+    this.actions = {};
+    for (const n of ['Idle', 'Walk', 'Run']) {
+      const a = this.mixer.clipAction(clip(n));
+      a.play();
+      a.setEffectiveWeight(n === 'Idle' ? 1 : 0);
+      this.actions[n] = a;
+    }
+    const srcBones = {};
+    this.src.traverse((o) => { if (o.isBone) srcBones[o.name.replace('mixamorig', '')] = o; });
+    const tgtBones = {};
+    target.traverse((o) => { if (o.isBone) (tgtBones[o.name] = tgtBones[o.name] || []).push(o); });
+    this.target = target;
+
+    // source T-pose
+    const tpose = this.mixer.clipAction(clip('TPose'));
+    for (const a of Object.values(this.actions)) a.setEffectiveWeight(0);
+    tpose.play();
+    this.mixer.update(0);
+    this.src.updateMatrixWorld(true);
+    // lift A-pose arms to a T before measuring the target rest pose
+    if (armRest) {
+      for (const [n, s] of [['l_upperArm', 1], ['r_upperArm', -1]]) {
+        for (const b of tgtBones[n] || []) b.quaternion.multiply(_d.setFromAxisAngle(Z, -s * armRest));
+      }
+    }
+    target.updateMatrixWorld(true);
+    this.links = [];
+    for (const [, s, r, a] of MOCAP) {
+      const tName = rpm ? r : a;
+      if (!tName || !srcBones[s] || !tgtBones[tName]) continue;
+      this.links.push({
+        src: srcBones[s],
+        srcRest: relQuat(srcBones[s], this.src, new THREE.Quaternion()).invert(),
+        tgt: tgtBones[tName].map((b) => ({ b, rest: relQuat(b, target, new THREE.Quaternion()) })),
+        depth: (() => { let d = 0, p = tgtBones[tName][0]; while (p.parent) { d++; p = p.parent; } return d; })(),
+      });
+    }
+    this.links.sort((a, b) => a.depth - b.depth);
+    // source and target may face opposite ways: compare where "left" is
+    const sl = srcBones.LeftArm.getWorldPosition(new THREE.Vector3()).x;
+    const tl = (tgtBones[rpm ? 'LeftArm' : 'l_upperArm'][0]).getWorldPosition(new THREE.Vector3()).x;
+    this.flip = Math.sign(sl) !== Math.sign(tl) ? new THREE.Quaternion().setFromAxisAngle(Y, Math.PI) : null;
+    tpose.stop();
+    this.hips = srcBones.Hips;
+    this.hipsRestY = this.hips.getWorldPosition(new THREE.Vector3()).y;
+    for (const a of Object.values(this.actions)) a.play();
+    this.weights = { Idle: 1, Walk: 0, Run: 0 };
+    this.bob = 0;
+  }
+
+  // blend toward the clip for this speed, then copy the pose across
+  update(dt, speed, walkSpeed, runSpeed) {
+    const run = clamp((speed - walkSpeed) / (runSpeed - walkSpeed), 0, 1);
+    const walk = clamp(speed / walkSpeed, 0, 1) * (1 - run);
+    const target = { Idle: 1 - clamp(speed / walkSpeed, 0, 1), Walk: walk, Run: run };
+    for (const n of Object.keys(this.actions)) {
+      this.weights[n] = damp(this.weights[n], target[n], 8, dt);
+      this.actions[n].setEffectiveWeight(this.weights[n]);
+    }
+    // keep footsteps in time with the ground speed
+    this.actions.Walk.timeScale = speed > 0.1 ? clamp(speed / walkSpeed, 0.6, 1.6) : 1;
+    this.actions.Run.timeScale = speed > 0.1 ? clamp(speed / runSpeed, 0.7, 1.4) : 1;
+    this.mixer.update(dt);
+    this.src.updateMatrixWorld(true);
+    for (const L of this.links) {
+      relQuat(L.src, this.src, _d).multiply(L.srcRest);
+      if (this.flip) _d.premultiply(this.flip).multiply(_inv.copy(this.flip).invert());
+      for (const t of L.tgt) {
+        _w.copy(_d).multiply(t.rest);
+        relQuat(t.b.parent, this.target, _q).invert();
+        t.b.quaternion.copy(_q).multiply(_w);
+        t.b.updateMatrixWorld(true);
+      }
+    }
+    this.bob = this.hips.getWorldPosition(_vec).y - this.hipsRestY;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Ronaldo and Messi stroll around the starting city. A pounce makes them
+// react with their catchphrase.
+// ---------------------------------------------------------------------------
+export class CityPeople {
+  constructor(scene, defs, soldier, area, towns) {
+    this.area = area;
+    this.towns = towns;
+    this.list = defs.map((d, i) => {
+      const group = new THREE.Group();
+      const model = SkeletonUtils.clone(d.src.object);
       model.traverse((o) => {
         if (!o.isMesh) return;
         o.castShadow = true;
         o.receiveShadow = true;
         o.frustumCulled = false;
       });
-      space.add(model);
-      scene.add(space);
-      const roles = Object.fromEntries(GOAT_ROLES.map((r) => [r, r]));
-      this.list.push({
-        g: space, poser: new Poser(space, model, roles), pos: new THREE.Vector3(1e6, 0, 0),
-        heading: Math.random() * 6.28, speed: 0, state: 'gone', timer: Math.random() * 3, phase: Math.random() * 6, graze: 0, bleatT: 3,
-      });
-    }
+      group.add(model);
+      scene.add(group);
+      const mocap = new Mocap(soldier, model, !!d.rpm, d.rpm ? 0 : d.src.meta.armRest);
+      const H = d.src.meta.H;
+      const p = { ...d, group, model, mocap, H, pos: new THREE.Vector3(), heading: Math.random() * 6.28, speed: 0, goal: null, state: 'idle', timer: 1 + i, react: 0, stuck: 0, spin: 0 };
+      this.pick(p, true);
+      p.pos.copy(p.goal);
+      this.pick(p);
+      return p;
+    });
   }
 
-  spawn(m, cat, ctx) {
-    for (let tries = 0; tries < 16; tries++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = 18 + Math.random() * 30;
-      const x = cat.x + Math.cos(a) * d;
-      const z = cat.z + Math.sin(a) * d;
-      if (townMask(x, z) > 0.05 || roadMask(x, z, true)) continue;
-      _v.set(x, 0, z);
-      ctx.props.collide(_v, 0.5, -1e3);
-      if (Math.abs(_v.x - x) > 0.01 || Math.abs(_v.z - z) > 0.01) continue;
-      m.pos.set(x, terrainHeight(x, z), z);
-      m.state = 'graze';
-      m.timer = 2 + Math.random() * 4;
-      m.g.visible = true;
-      return;
+  free(x, z) {
+    for (const c of this.towns.extra) if (!c.step && x > c.x0 - 0.8 && x < c.x1 + 0.8 && z > c.z0 - 0.8 && z < c.z1 + 0.8) return false;
+    return true;
+  }
+
+  pick(p, anywhere) {
+    const A = this.area;
+    for (let i = 0; i < 40; i++) {
+      const x = A.x + (Math.random() - 0.5) * A.w;
+      const z = A.z + (Math.random() - 0.5) * A.d;
+      if (this.free(x, z)) { p.goal = new THREE.Vector3(x, 0, z); return; }
     }
+    if (anywhere) p.goal = new THREE.Vector3(A.x, 0, A.z);
   }
 
   update(dt, time, player, ctx) {
-    const cat = player.pos;
-    const fast = player.speed > player.cfg.walk + 0.4;
-    for (const m of this.list) {
-      if (m.state === 'gone') {
-        m.g.visible = false;
-        m.timer -= dt;
-        if (m.timer < 0) this.spawn(m, cat, ctx);
-        continue;
-      }
-      const dx = m.pos.x - cat.x, dz = m.pos.z - cat.z;
-      const dist = Math.hypot(dx, dz);
-      if (dist > 90) { m.state = 'gone'; m.timer = 1; continue; }
-      const alert = player.sleeping ? 2 : fast ? 9 : player.flying && cat.y - m.pos.y > 4 ? 0 : 5.5;
-      if (dist < alert && m.state !== 'flee') {
-        m.state = 'flee';
-        if (ctx.onAlert) ctx.onAlert(m, this.H);
-        if (ctx.sound) ctx.sound.bleat();
-      }
-      m.timer -= dt;
+    for (const p of this.list) {
+      const toCat = Math.atan2(player.pos.x - p.pos.x, player.pos.z - p.pos.z);
       let target = 0;
-      if (m.state === 'flee') {
-        m.heading = dampAngle(m.heading, Math.atan2(dx, dz) + Math.sin(time * 2 + m.phase) * 0.4, 5, dt);
-        target = 4.3;
-        if (dist > 16) { m.state = 'walk'; m.timer = 2; }
-      } else if (m.state === 'walk') {
-        target = 1.0;
-        m.heading += Math.sin(time * 0.7 + m.phase) * dt * 0.8;
-        if (m.timer < 0) { m.state = 'graze'; m.timer = 3 + Math.random() * 5; }
-      } else if (m.timer < 0) {
-        m.state = 'walk';
-        m.timer = 2 + Math.random() * 4;
-        m.heading += (Math.random() - 0.5) * 2;
+      if (p.react > 0) {
+        p.react -= dt;
+        p.heading = dampAngle(p.heading, toCat, 6, dt);
+      } else if (p.state === 'idle') {
+        p.timer -= dt;
+        if (p.timer < 0) { p.state = 'walk'; this.pick(p); }
+      } else {
+        const dx = p.goal.x - p.pos.x, dz = p.goal.z - p.pos.z;
+        const dist = Math.hypot(dx, dz);
+        p.heading = dampAngle(p.heading, Math.atan2(dx, dz), 3, dt);
+        target = p.walk;
+        if (dist < 1) { p.state = 'idle'; p.timer = 2 + Math.random() * 5; }
       }
-      m.speed = damp(m.speed, target, 4, dt);
-      m.pos.x += Math.sin(m.heading) * m.speed * dt;
-      m.pos.z += Math.cos(m.heading) * m.speed * dt;
-      // goats stay out of town
-      if (townMask(m.pos.x, m.pos.z) > 0.3) m.heading += dt * 3;
-      ctx.props.collide(m.pos, 0.45, m.pos.y);
-      m.pos.y = terrainHeight(m.pos.x, m.pos.z);
+      p.speed = damp(p.speed, target, 4, dt);
+      const ox = p.pos.x, oz = p.pos.z;
+      p.pos.x += Math.sin(p.heading) * p.speed * dt;
+      p.pos.z += Math.cos(p.heading) * p.speed * dt;
+      const top = this.towns.collide(p.pos, 0.45, p.pos.y);
+      if (p.speed > 0.5 && Math.hypot(p.pos.x - ox, p.pos.z - oz) < p.speed * dt * 0.3) {
+        p.stuck += dt;
+        if (p.stuck > 1) { p.stuck = 0; this.pick(p); }
+      } else p.stuck = 0;
+      p.pos.y = Math.max(terrainHeight(p.pos.x, p.pos.z), top);
 
-      // animation
-      const run = clamp(m.speed / 4.3, 0, 1);
-      const move = clamp(m.speed / 1.0, 0, 1);
-      m.phase += dt * m.speed * (run > 0.5 ? 3.2 : 4.5);
-      const amp = lerp(0.35, 0.55, run) * move;
-      const P = m.poser;
-      const legs = [['fl', 0], ['fr', Math.PI], ['bl', Math.PI], ['br', 0]];
-      for (const [n, off] of legs) {
-        const ph = m.phase + off + (run > 0.5 && n[0] === 'b' ? 0.6 : 0);
-        P.pose(`${n}_upper`, -Math.sin(ph) * amp);
-        P.pose(`${n}_lower`, Math.max(0, Math.cos(ph)) * amp * 1.2 * (n[0] === 'f' ? 1 : -0.6));
-      }
-      m.graze = damp(m.graze, m.state === 'graze' ? 1 : 0, 3, dt);
-      P.pose('neck', m.graze * 0.95 + Math.sin(time * 6 + m.phase) * 0.06 * m.graze - run * 0.15, 0, 0);
-      m.g.position.set(m.pos.x, m.pos.y + Math.abs(Math.sin(m.phase)) * 0.06 * run, m.pos.z);
-      m.g.rotation.y = m.heading;
+      p.mocap.update(dt, p.speed, p.walk, p.walk * 2.6);
+      // Ronaldo's reaction: SIUUU jump with a full turn
+      let hop = 0;
+      if (p.react > 0 && p.celebrate === 'siu') {
+        const k = clamp((2.2 - p.react) / 0.6, 0, 1);
+        hop = Math.sin(Math.PI * k) * p.H * 0.18;
+        p.spin = Math.PI * 2 * k * k * (3 - 2 * k);
+      } else p.spin = 0;
+      p.group.position.set(p.pos.x, p.pos.y + p.mocap.bob * 0 + hop, p.pos.z);
+      p.group.rotation.y = p.heading + p.spin;
     }
   }
 
+  // a pounce that lands on someone: they react and say their line
   tryCatch(point, reach) {
-    for (const m of this.list) {
-      if (m.state === 'gone') continue;
-      if (Math.hypot(m.pos.x - point.x, m.pos.z - point.z) < reach + 0.35 && Math.abs(m.pos.y - point.y) < 1.6) {
-        m.state = 'gone';
-        m.timer = 6 + Math.random() * 6;
-        m.g.visible = false;
-        return m;
+    for (const p of this.list) {
+      if (p.react > 0) continue;
+      if (Math.hypot(p.pos.x - point.x, p.pos.z - point.z) < reach + 0.4 && Math.abs(p.pos.y - point.y) < p.H) {
+        p.react = 2.2;
+        p.state = 'idle';
+        p.timer = 2.5;
+        return p;
       }
     }
     return null;
-  }
-
-  nearest(pos) {
-    let best = null, bd = Infinity;
-    for (const m of this.list) {
-      if (m.state === 'gone') continue;
-      const d = Math.hypot(m.pos.x - pos.x, m.pos.z - pos.z);
-      if (d < bd) { bd = d; best = m; }
-    }
-    return best ? { mouse: best, dist: bd } : null;
   }
 }

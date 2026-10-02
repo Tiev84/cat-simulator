@@ -6,7 +6,7 @@ import { TERRAIN_GLSL, NOISE_GLSL } from './noise.js';
 export class Terrain {
   constructor(scene) {
     const size = 640;
-    const segs = 320;
+    const segs = 240;
     this.step = size / segs;
     const geo = new THREE.PlaneGeometry(size, size, segs, segs);
     geo.rotateX(-Math.PI / 2);

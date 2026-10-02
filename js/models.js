@@ -4,8 +4,9 @@ import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { Rig, createCat, WALK_OFF, RUN_OFF } from './cat.js';
-import { rigHumanoid, rigQuadruped } from './autorig.js';
-import { HumanRig, Goats, RPM_ROLES } from './people.js';
+import { rigHumanoid } from './autorig.js';
+import { HumanRig, CityPeople, RPM_ROLES } from './people.js';
+import { CITY } from './noise.js';
 import { clamp, lerp, damp } from './noise.js';
 
 // Real 3D cat models (models/). A rigged ginger-and-white cat drives the
@@ -42,25 +43,34 @@ export function loadCatModels() {
     tex('models/maxwell_whiskers.png'),
     new OBJLoader(manager).loadAsync('models/tom.obj'),
     tex('models/tom.png'),
-    g.loadAsync('models/goat.glb'),
-    tex('models/goat.jpg'),
     g.loadAsync('models/messi.glb'),
     f.loadAsync(R + 'ronaldo.fbx'),
     Promise.all(ronTex.map((n) => tex(R + n + '.jpg'))),
-  ]).then(([cat, oiia, mx, oiiaTex, mxTex, mxWh, tomObj, tomTex, goat, goatTex, messi, ron, ronMaps]) => {
+  ]).then(([cat, oiia, mx, oiiaTex, mxTex, mxWh, tomObj, tomTex, messi, ron, ronMaps]) => {
     Object.assign(A, { cat, oiia, oiiaTex, mx, mxTex, mxWh });
     // Tom (static T-pose game model) and Messi get a skeleton generated here
     tomObj.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ map: tomTex, roughness: 0.7 }); });
     A.tom = rigHumanoid(tomObj, 1.4);
     messi.scene.traverse((o) => { if (o.isMesh) { o.material.roughness = 0.75; o.material.metalness = 0; } });
     A.messi = rigHumanoid(messi.scene, 2.2);
-    goatTex.flipY = false;
-    goat.scene.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ map: goatTex, roughness: 0.95, side: THREE.DoubleSide }); });
-    A.goat = rigQuadruped(goat.scene, 1.15);
     A.ronaldo = prepRonaldo(ron, Object.fromEntries(ronTex.map((n, i) => [n, ronMaps[i]])));
     A.ready = true;
   });
+  // motion-capture clips (Idle / Walk / Run) from three.js's Soldier example
+  A.soldierLoading = g.loadAsync(SOLDIER).then((s) => { A.soldier = s; }).catch((e) => console.warn('Mocap clips unavailable', e));
   return loading;
+}
+
+const SOLDIER = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Soldier.glb';
+
+// Ronaldo and Messi walk around the starting city as NPCs.
+export async function createPeople(scene, towns) {
+  await A.soldierLoading;
+  if (!A.soldier || !A.ronaldo || !A.messi) return null;
+  return new CityPeople(scene, [
+    { name: 'Ronaldo', src: A.ronaldo, rpm: true, voice: 'ronaldo', line: 'SIUUU!', celebrate: 'siu', walk: 1.6 },
+    { name: 'Messi', src: A.messi, rpm: false, voice: 'messi', line: '¿Qué mirás, bobo?', walk: 1.5 },
+  ], A.soldier, { x: CITY.c[0], z: CITY.c[1], w: 110, d: 140 }, towns);
 }
 
 // Ronaldo comes rigged (Ready Player Me skeleton); give him his textures and
@@ -97,14 +107,10 @@ function prepRonaldo(ron, maps) {
   };
 }
 
-export function createGoats(scene) {
-  return A.goat ? new Goats(scene, A.goat) : null;
-}
+
 
 export function createRig(skin) {
   if (A.ready && skin.id === 'tom') return new HumanRig(skin, A.tom, { walk: 2.0, run: 5.0, jump: 4.6, radius: 0.3, wingScale: A.tom.meta.armLen / 0.62, cape: true, hold: 'sneak' });
-  if (A.ready && skin.id === 'ronaldo') return new HumanRig(skin, A.ronaldo, { walk: 2.4, run: 6.2, jump: 5.2, radius: 0.42, wingScale: 1.9, celebrate: 'siu' });
-  if (A.ready && skin.id === 'messi') return new HumanRig(skin, A.messi, { walk: 2.4, run: 6.4, jump: 5.2, radius: 0.42, wingScale: 1.9, celebrate: 'bobo' });
   if (A.ready) {
     if (LOOKS[skin.id]) return new ModelQuadRig(skin);
     if (skin.id === 'oiia') return new OiiaRig(skin);
@@ -287,7 +293,11 @@ class ModelQuadRig extends Rig {
 
     LEGS.forEach((L, i) => {
       const ph = this.phase + lerp(WALK_OFF[i], RUN_OFF[i], runN) * Math.PI * 2;
-      let up = -Math.sin(ph) * amp;
+      // the scan's lower back is skinned to the hind hips: swing them gently
+      // and let the knees carry the stride, so the back doesn't buckle
+      const swing = -Math.sin(ph) * amp;
+      let up = swing * (L.front ? 0.7 : 0.4);
+      const kneeSwing = L.front ? 0 : swing * 0.55;
       let kn = Math.max(0, Math.cos(ph)) * knee;
       up = lerp(up, L.front ? -0.55 : 0.6, st.airW);
       kn = lerp(kn, L.front ? 0.4 : 0.35, st.airW);
@@ -310,7 +320,7 @@ class ModelQuadRig extends Rig {
         up = lerp(up, -1.1, st.sleepW);
         kn = lerp(kn, 2.2, st.sleepW);
         B.pose(`${L.side}_HindLeg_Hip`, up);
-        B.pose(`${L.side}_HindLeg_Knee1`, -kn * 0.45);
+        B.pose(`${L.side}_HindLeg_Knee1`, -kn * 0.45 + kneeSwing * (1 - st.sitW) * (1 - st.sleepW));
         B.pose(`${L.side}_HindLeg_Knee2`, kn * 0.85);
       }
     });

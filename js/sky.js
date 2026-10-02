@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { FBXLoader } from 'three/addons/loaders/FBXLoader.js';
 import { NOISE_GLSL, rng, smoothstep, damp, lerp } from './noise.js';
 
 // Palette keyed by sun elevation in degrees.
@@ -169,6 +170,41 @@ export class Environment {
     this.clouds = new CloudLayer(scene);
   }
 
+  // Painted daytime skybox (models/sky). It fades out toward dusk, under
+  // heavy cloud and in rain, letting the procedural sky (stars, sunset) show.
+  async loadSkybox() {
+    const [fbx, map] = await Promise.all([
+      new FBXLoader().loadAsync('models/sky/skybox.fbx'),
+      new THREE.TextureLoader().loadAsync('models/sky/skybox.jpg'),
+    ]);
+    map.colorSpace = THREE.SRGBColorSpace;
+    // depth-tested so the scene covers it, drawn far out behind everything
+    this.skyboxMat = new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, depthTest: true, fog: false, side: THREE.DoubleSide, toneMapped: false });
+    fbx.traverse((o) => {
+      if (!o.isMesh) return;
+      o.material = this.skyboxMat;
+      o.renderOrder = -999;
+      o.frustumCulled = false;
+    });
+    // The file is a half box (a dome) authored Z-up: turn its open side down.
+    const holder = new THREE.Group();
+    holder.add(fbx);
+    fbx.updateMatrixWorld(true);
+    let box = new THREE.Box3().setFromObject(fbx);
+    let size = box.getSize(new THREE.Vector3());
+    if (size.z < size.y * 0.75) fbx.rotation.x += box.getCenter(new THREE.Vector3()).z > 0 ? -Math.PI / 2 : Math.PI / 2;
+    holder.updateMatrixWorld(true);
+    box = new THREE.Box3().setFromObject(fbx);
+    size = box.getSize(new THREE.Vector3());
+    const s = 1700 / Math.max(size.x, size.z);
+    holder.scale.setScalar(s);
+    const c = box.getCenter(new THREE.Vector3());
+    holder.position.set(-c.x * s, -box.min.y * s - 25, -c.z * s);
+    this.skybox = new THREE.Group();
+    this.skybox.add(holder);
+    this.scene.add(this.skybox);
+  }
+
   setShadowQuality(size, extent) {
     this.dir.castShadow = size > 0;
     if (size > 0) {
@@ -241,6 +277,16 @@ export class Environment {
     this.sky.position.copy(focus.camera);
 
     this.scene.fog.color.copy(p.hor);
+    if (this.skybox) {
+      const day = smoothstep(-5, 7, this.sunElev) * (1 - overcast * 0.75) * (1 - this.rain * 0.9);
+      const sunset = 1 - smoothstep(4, 22, this.sunElev);
+      this.skyboxMat.opacity = day;
+      this.skyboxMat.color.setRGB(1, 1, 1).lerp(_c.copy(p.hor).multiplyScalar(1.2), 0.5 * sunset);
+      this.skybox.visible = day > 0.01;
+      this.skybox.position.copy(focus.camera);
+      // blend the haze toward the painted horizon so distant hills match
+      this.scene.fog.color.lerp(_c.set('#b4dcef'), day * 0.55 * (1 - sunset));
+    }
     this.scene.fog.near = this.fogNear;
     this.scene.fog.far = this.fogFar;
 

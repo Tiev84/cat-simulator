@@ -5,7 +5,7 @@ import { Terrain } from './terrain.js';
 import { Grass } from './grass.js';
 import { Props } from './props.js';
 import { SKINS } from './cat.js';
-import { loadCatModels, createRig, createGoats } from './models.js';
+import { loadCatModels, createRig, createPeople } from './models.js';
 import { WINGS, CAPE, createWings, setWingEnvironment, getWingEnvironment } from './wings.js';
 import { Towns } from './town.js';
 import { City } from './city.js';
@@ -19,12 +19,14 @@ const $ = (id) => document.getElementById(id);
 // Yield to the browser; the timeout keeps loading going in a background tab.
 const frame = () => new Promise((r) => { requestAnimationFrame(() => r()); setTimeout(r, 60); });
 
+// Medium is the default and is tuned for speed over looks.
 const QUALITY = {
-  low: { px: 0.75, shadow: 0, ext: 10, near: 45000, far: 25000 },
-  medium: { px: 1, shadow: 1024, ext: 11, near: 90000, far: 50000 },
-  high: { px: 1.5, shadow: 2048, ext: 14, near: 140000, far: 75000 },
+  low: { px: 0.7, shadow: 0, ext: 10, near: 22000, far: 9000 },
+  medium: { px: 1, shadow: 1024, ext: 11, near: 55000, far: 20000 },
+  high: { px: 1.5, shadow: 2048, ext: 14, near: 110000, far: 45000 },
   ultra: { px: 2, shadow: 4096, ext: 16, near: 200000, far: 110000 },
 };
+const LEVELS = ['low', 'medium', 'high', 'ultra'];
 const MEOW_TEXT = { ronaldo: 'SIUUU!', messi: '¿Qué mirás, bobo?', ginger: 'meo!', midnight: 'meo', tuxedo: 'meo!', chonky: 'mrrrp', buff: 'MEO.', maxwell: 'meo?', tom: 'MEOWWW!', oiia: 'oiia!' };
 const BADGES = { DEFAULT: 'MẶC ĐỊNH', GENERATED: 'PHỐI MÀU', CHONK: 'MẬP', MEME: 'MEME', UNLOCK: 'MỞ KHOÁ' };
 const HOLD = { groom: 'liếm lông', flex: 'gồng cơ', sneak: 'rón rén', spin: 'xoay', celebrate: 'ăn mừng' };
@@ -34,21 +36,22 @@ const REWARDS = [
   { at: 5, kind: 'wings', id: 'helicopter', name: 'Cánh quạt trực thăng', how: 'Bấm F để quạt quay và cất cánh.' },
   { at: 10, kind: 'skin', id: 'tom', name: 'Mèo Tom', how: 'Bật cánh (F) là Tom bay bằng áo choàng dơi.' },
   { at: 15, kind: 'skin', id: 'oiia', name: 'Mèo OIIA', how: 'Giữ E để nằm ổ bánh mì và xoay tít: oiia oiia!' },
-  { at: 7, track: 'goats', kind: 'skin', id: 'ronaldo', name: 'Ronaldo', how: 'Bấm E: SIUUU! (giữ E để ăn mừng liên tục)' },
-  { at: 10, track: 'goats', kind: 'skin', id: 'messi', name: 'Messi', how: 'Bấm E: ¿Qué mirás, bobo?' },
 ].map((r) => ({ track: 'mice', ...r }));
-const TRACK = { mice: { icon: '🐭', unit: 'con chuột' }, goats: { icon: '🐐', unit: 'con dê' } };
+const TRACK = { mice: { icon: '🐭', unit: 'con chuột' } };
 
 // ---------------------------------------------------------------- settings
 const SAVE_KEY = 'catsim.v1';
 function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { return {}; }
 }
-const settings = Object.assign({ quality: 'medium', weather: 'clear', time: 'cycle', sound: true, skin: 'ginger', wings: 'angel', mice: 0, goats: 0 }, loadSettings());
-const unlocked = (item) => !item || ((!item.unlock || settings.mice >= item.unlock) && (!item.unlockGoats || settings.goats >= item.unlockGoats));
+const settings = Object.assign({ quality: 'medium', weather: 'clear', time: 'cycle', sound: true, skin: 'ginger', wings: 'angel', mice: 0 }, loadSettings());
+const unlocked = (item) => !item || !item.unlock || settings.mice >= item.unlock;
+if (!SKINS.some((s) => s.id === settings.skin)) settings.skin = 'ginger';
 if (!unlocked(SKINS.find((s) => s.id === settings.skin))) settings.skin = 'ginger';
 if (!unlocked(WINGS.find((w) => w.id === settings.wings))) settings.wings = 'angel';
 if (!QUALITY[settings.quality]) settings.quality = 'medium';
+// v2: everyone starts again from Medium graphics (tuned for smooth play)
+if (settings.v !== 2) { settings.quality = 'medium'; settings.v = 2; }
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(settings)); } catch { /* storage unavailable */ }
 }
@@ -61,6 +64,8 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// shadows are redrawn every other frame (see tick)
+renderer.shadowMap.autoUpdate = false;
 $('stage').appendChild(renderer.domElement);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -80,6 +85,7 @@ async function buildWorld(progress) {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(55, innerWidth / innerHeight, 0.05, 1600);
   const env = new Environment(scene);
+  env.loadSkybox().catch((e) => console.warn('Skybox unavailable', e));
   progress(0.12, 'Đang đắp đồi…');
   await frame();
   const terrain = new Terrain(scene);
@@ -107,14 +113,14 @@ async function buildWorld(progress) {
     console.warn('City block unavailable', e);
   }
   const mice = new Mice(scene);
-  const goats = createGoats(scene);
+  const people = await createPeople(scene, towns);
   grassNear.uniforms.uMice.value = mice.push;
   grassFar.uniforms.uMice.value = mice.push;
   const player = new Player();
   const camRig = new CameraRig(camera);
   props.update(player.pos);
   towns.update(player.pos, 0);
-  return { scene, camera, env, terrain, grassNear, grassFar, props, towns, city, mice, goats, rain, motes, butterflies, text, player, camRig, zzzT: 0, catPush: new THREE.Vector3(), hintT: 0, wasFlying: false };
+  return { scene, camera, env, terrain, grassNear, grassFar, props, towns, city, mice, people, rain, motes, butterflies, text, player, camRig, zzzT: 0, catPush: new THREE.Vector3(), hintT: 0, wasFlying: false };
 }
 
 function applyQuality() {
@@ -170,13 +176,11 @@ function card(item, group, onPick) {
   b.dataset.id = item.id;
   const badge = item.badge ? `<span class="badge ${item.badge === 'DEFAULT' ? 'default' : ''}">${BADGES[item.badge] || item.badge}</span>` : '';
   b.innerHTML = `<img class="thumb" alt="" /><span class="check"></span>
-    ${item.unlock ? `<span class="lock">🔒 Bắt ${item.unlock} con chuột</span>` : ''}${item.unlockGoats ? `<span class="lock">🔒 Bắt ${item.unlockGoats} con dê</span>` : ''}
+    ${item.unlock ? `<span class="lock">🔒 Bắt ${item.unlock} con chuột</span>` : ''}
     <div class="meta"><div class="name">${item.name}${badge}</div><div class="desc">${item.desc}</div></div>`;
   b.addEventListener('click', () => {
     if (!unlocked(item)) {
-      toast(item.unlockGoats
-        ? `Bắt ${item.unlockGoats} con dê để mở khoá ${item.name} (bạn đang có ${settings.goats})`
-        : `Bắt ${item.unlock} con chuột để mở khoá ${item.name} (bạn đang có ${settings.mice})`);
+      toast(`Bắt ${item.unlock} con chuột để mở khoá ${item.name} (bạn đang có ${settings.mice})`);
       return;
     }
     onPick(item.id);
@@ -295,6 +299,14 @@ function snap(skin, wingSpec) {
   return url;
 }
 
+// The menu pictures use a second WebGL context; release it while playing.
+function freeThumbs() {
+  if (!thumbs.renderer) return;
+  thumbs.renderer.dispose();
+  thumbs.renderer.forceContextLoss();
+  thumbs.renderer = null;
+}
+
 async function renderCatThumbs() {
   for (const s of SKINS) {
     await frame();
@@ -355,6 +367,7 @@ async function enter() {
   input.enabled = true;
   running = true;
   entering = false;
+  freeThumbs();
   updateQuest();
   if (!questShown) {
     questShown = true;
@@ -370,7 +383,7 @@ function nextReward(track = 'mice') {
 }
 
 function updateQuest() {
-  for (const track of ['mice', 'goats']) {
+  for (const track of ['mice']) {
     const n = settings[track];
     $(`q-${track}`).textContent = n;
     const next = nextReward(track);
@@ -414,20 +427,19 @@ function showQuest() {
     return `<li class="${done ? 'done' : ''}"><span>${done ? '✓' : TRACK[r.track].icon + r.at}</span>
     <div><b>${r.name}</b><small>${r.kind === 'wings' ? 'Cánh mới' : 'Nhân vật mới'} · ${r.how}</small></div></li>`;
   }).join('');
-  modal('Săn chuột & săn dê', `<p>Chuột trốn trong đồng cỏ và quanh thị trấn, dê thì gặm cỏ ngoài đồng. <b>Bấm chuột trái để vồ</b> — mỗi con bắt được là 1 điểm.</p>
+  modal('Săn chuột 🐭', `<p>Chuột trốn trong đồng cỏ và quanh thị trấn. <b>Bấm chuột trái để vồ</b> — mỗi con bắt được là 1 điểm. Ronaldo và Messi đang dạo trong khu phố đầu tiên — thử vồ họ xem!</p>
     <ul class="rewards">${items}</ul>
-    <p class="muted">Bấm vào game để xoay camera bằng chuột · Esc để thả con trỏ · Q để xem lại bảng này.<br>Bạn đã bắt được <b>${settings.mice}</b> con chuột và <b>${settings.goats}</b> con dê.</p>`,
+    <p class="muted">Bấm vào game để xoay camera bằng chuột · Esc để thả con trỏ · Q để xem lại bảng này.<br>Bạn đã bắt được <b>${settings.mice}</b> con chuột.</p>`,
   [['Bắt đầu săn', null, true]]);
 }
 
 function onCatch(m, track = 'mice') {
   settings[track] += 1;
   save();
-  if (track === 'goats') sound.bleat();
   sound.caught();
   const p = m.pos.clone();
-  p.y += track === 'goats' ? 1.4 : 0.6;
-  W.text.spawn(`+1 ${TRACK[track].icon}`, p, { size: track === 'goats' ? 1.0 : 0.7, life: 1.4, rise: 0.6, color: '#ffe39a' });
+  p.y += 0.6;
+  W.text.spawn(`+1 ${TRACK[track].icon}`, p, { size: 0.7, life: 1.4, rise: 0.6, color: '#ffe39a' });
   updateQuest();
   refreshLocks();
   const r = REWARDS.find((x) => x.track === track && x.at === settings[track]);
@@ -516,9 +528,34 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (!W || !W.rig) return;
   step(dt);
+  frameNo++;
+  if (frameNo % 2 === 0) renderer.shadowMap.needsUpdate = true;
   renderer.render(W.scene, W.camera);
+  autoQuality(dt);
   if (debugOn) showDebug();
   input.endFrame();
+}
+
+// If the game runs slowly for a few seconds, step the graphics down a level.
+let frameNo = 0;
+let perfT = 0, perfFrames = 0, perfCooldown = 6;
+function autoQuality(dt) {
+  if (!running || document.hidden || dt >= 0.05) return;
+  perfT += dt;
+  perfFrames++;
+  perfCooldown -= dt;
+  if (perfT < 3) return;
+  const fpsNow = perfFrames / perfT;
+  perfT = 0;
+  perfFrames = 0;
+  const i = LEVELS.indexOf(settings.quality);
+  if (fpsNow < 32 && i > 0 && perfCooldown < 0) {
+    settings.quality = LEVELS[i - 1];
+    save();
+    applySettings();
+    perfCooldown = 8;
+    toast(`Đã giảm đồ hoạ xuống "${$('opt-quality').selectedOptions[0].textContent}" cho mượt hơn`);
+  }
 }
 
 function step(dt) {
@@ -584,24 +621,19 @@ function step(dt) {
     const reach = new THREE.Vector3(Math.sin(player.heading), 0, Math.cos(player.heading)).multiplyScalar(rig.cfg.radius + 0.25).add(player.pos);
     const caught = W.mice.tryCatch(reach, 0.85);
     if (caught) onCatch(caught);
-    const goat = W.goats && W.goats.tryCatch(reach, 0.85);
-    if (goat) onCatch(goat, 'goats');
+    const who = W.people && W.people.tryCatch(reach, 0.85);
+    if (who) {
+      sound.meow(1, who.voice);
+      const p = who.pos.clone();
+      p.y += who.H * 1.12;
+      W.text.spawn(who.line, p, { size: 1.1, life: 2, rise: 0.4, color: '#fff6e0' });
+    }
   }
-  if (W.goats) {
-    W.goats.update(dt, time, player, {
-      props: W.props,
-      sound,
-      onAlert: (m, h) => {
-        const p = m.pos.clone();
-        p.y += h * 1.15;
-        W.text.spawn('!', p, { size: 0.7, life: 0.8, rise: 0.4, color: '#fff2b0' });
-      },
-    });
-  }
+  if (W.people) W.people.update(dt, time, player, {});
   W.hintT -= dt;
   if (W.hintT < 0) {
     W.hintT = 0.25;
-    for (const [track, list] of [['mice', W.mice], ['goats', W.goats]]) {
+    for (const [track, list] of [['mice', W.mice]]) {
       const n = list && list.nearest(player.pos);
       if (!n) continue;
       const ang = Math.atan2(n.mouse.pos.x - player.pos.x, n.mouse.pos.z - player.pos.z);
@@ -675,6 +707,7 @@ modelsReady.then(() => renderCatThumbs()).then(renderWingThumbs);
 // fixed steps (useful when the tab is throttled in the background).
 window.catsim = {
   get world() { return W; },
+  renderer,
   settings,
   sound,
   advance(seconds, keys = []) {
@@ -690,6 +723,7 @@ window.catsim = {
       for (const k of keys) { input.keys.delete(k); input.released.add(k); }
       step(1 / 60);
     }
+    renderer.shadowMap.needsUpdate = true;
     renderer.render(W.scene, W.camera);
     if (debugOn) showDebug();
     input.endFrame();

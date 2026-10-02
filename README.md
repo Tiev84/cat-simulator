@@ -30,12 +30,12 @@ Mèo đứng yên khoảng 7 giây sẽ tự ngồi xuống.
 
 ## Săn chuột & mở khoá
 
-Mỗi con chuột / con dê bắt được = 1 điểm (lưu trong trình duyệt). Chuột ở khắp nơi, dê gặm cỏ ngoài đồng (không vào thị trấn).
+Mỗi con chuột bắt được = 1 điểm (lưu trong trình duyệt).
+
+Ronaldo và Messi là NPC đi dạo trong khu phố đầu tiên (đi bộ bằng hoạt ảnh quay từ người thật — clip Idle/Walk/Run của model Soldier trong ví dụ three.js, chuyển sang từng nhân vật). Mèo vồ trúng thì họ hô câu cửa miệng.
 
 - **5 chuột** → cánh quạt trực thăng. Mỗi lần bật cánh (F) phát câu meme "helicopter helicopter".
 - **10 chuột** → mèo Tom (đi 2 chân, giữ E để rón rén). Bật cánh thì Tom bay bằng áo choàng dơi màu tím.
-- **7 dê** → Ronaldo (bấm E: SIUUU! — nhảy xoay một vòng rồi đáp xuống dang tay)
-- **10 dê** → Messi (bấm E: ¿Qué mirás, bobo?)
 - **15 chuột** → OIIA Cat (mèo mướp meme). Giữ E là nằm thành ổ bánh mì (giấu chân) và xoay tít kèm tiếng "u i i a i".
 
 **Âm thanh "helicopter helicopter":** phát từ `sounds/helicopter.mp3` (clip meme gốc do bạn cung cấp). Muốn đổi
@@ -61,8 +61,8 @@ Xoá điểm để chơi lại từ đầu: mở Console của trình duyệt, c
 | `js/props.js` | Cây, đá, bụi, hoa sinh theo từng ô đất |
 | `js/city.js` | Khu phố "Cartoon City" (ithappy, bản Free cho Godot) đặt ở thị trấn đầu tiên: `models/city/city.json` được chuyển tự động từ cảnh Godot (330 mảnh, 79 model), vẽ theo nhóm (instancing), có va chạm, đứng được trên vỉa hè và nóc xe |
 | `js/town.js` | Thị trấn: nhà, đèn đường, ô tô, cây trong vườn, va chạm với nhà |
-| `js/autorig.js` | Tự gắn xương cho model tĩnh (Tom, Messi, con dê): dò hông, gối, vai, khuỷu từ hình dạng rồi gán từng đỉnh vào xương gần nhất |
-| `js/people.js` | Nhân vật 2 chân từ model (Tom, Ronaldo, Messi): đi, chạy, bay, ăn mừng; đàn dê ngoài đồng |
+| `js/autorig.js` | Tự gắn xương cho model tĩnh (Tom, Messi): dò hông, gối, vai, khuỷu từ hình dạng rồi gán từng đỉnh vào xương gần nhất |
+| `js/people.js` | Tom (chơi được) và NPC Ronaldo/Messi: chuyển hoạt ảnh mocap sang khung xương bất kỳ (retarget theo tư thế chữ T) |
 | `js/mice.js` | Chuột: đi lang thang, gặm, bỏ chạy khi mèo tới gần, bị bắt khi mèo vồ |
 | `js/sky.js` | Bầu trời, mặt trời/trăng/sao, ngày-đêm, mây, mưa, sấm chớp |
 | `js/effects.js` | Mưa, đom đóm/phấn hoa, bướm, chữ "meow"/"z" |
@@ -86,3 +86,9 @@ Khoảng 1 phút sau link online có bản mới. Người chơi tải lại tra
 Khu phố trong `models/city/` từ gói **Cartoon City Free** của ithappy. Các model khác trong `models/` do bạn tải về (Sketchfab): mèo bicolor có xương, mèo OIIA, Maxwell, Tom (bản GameCube), Ronaldo, Messi, con dê.
 Bản quyền thuộc tác giả từng model — dùng cho game chơi vui với bạn bè. Mèo Lực Sĩ vẫn dựng bằng code.
 Nếu model không tải được, game tự dùng mèo dựng bằng code thay thế.
+
+## Hiệu năng
+
+Mặc định đồ hoạ Trung bình. Bóng đổ vẽ lại cách 1 khung hình, cỏ giảm khi ở trong phố, và nếu game chạy dưới ~32 FPS vài giây liền thì tự giảm một mức đồ hoạ.
+
+Skybox ban ngày trong `models/sky/` (ảnh trời xanh có mây), mờ dần lúc hoàng hôn/ban đêm/mưa để thấy trời sao.
