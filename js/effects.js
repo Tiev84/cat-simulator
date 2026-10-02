@@ -256,7 +256,9 @@ export class FloatText {
       const k = it.age / it.life;
       it.s.position.y += it.rise * dt;
       it.s.position.x += Math.sin(it.age * 3) * it.drift * dt;
-      it.s.material.opacity = k < 0.15 ? k / 0.15 : 1 - Math.max(0, (k - 0.6) / 0.4);
+      // fades last at most 0.3 s in and 1.2 s out, so long messages stay readable
+      const fin = Math.min(0.3, it.life * 0.15), fout = Math.min(1.2, it.life * 0.4);
+      it.s.material.opacity = Math.min(1, it.age / fin, (it.life - it.age) / fout);
       const sc = it.size * lerp(0.7, 1.1, Math.min(1, k * 4));
       it.s.scale.set(sc * (it.aspect || 1), sc * 0.5, 1);
       if (k >= 1) {

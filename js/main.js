@@ -629,7 +629,7 @@ function step(dt) {
       sound.meow(1, who.voice);
       const p = who.pos.clone();
       p.y += who.H * 1.12;
-      W.text.spawn(who.line, p, { size: 1.1, life: 2, rise: 0.4, color: '#fff6e0' });
+      W.text.spawn(who.line, p, { size: 1.1, life: 5, rise: 0.1, color: '#fff6e0' });
     }
   }
   if (W.people) W.people.update(dt, time, player, {});
