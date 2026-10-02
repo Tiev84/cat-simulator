@@ -68,6 +68,8 @@ export class Sound {
     this.clip('tom');
     this.clip('ronaldo');
     this.clip('messi');
+    this.clip('truonggiang');
+    this.clip('damvinhhung');
   }
 
   loop(buffer, filters) {

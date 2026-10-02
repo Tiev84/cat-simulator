@@ -331,7 +331,7 @@ class Mocap {
     this.links.sort((a, b) => a.depth - b.depth);
     // source and target may face opposite ways: compare where "left" is
     const sl = srcBones.LeftArm.getWorldPosition(new THREE.Vector3()).x;
-    const tl = (tgtBones[rpm ? 'LeftArm' : 'l_upperArm'][0]).getWorldPosition(new THREE.Vector3()).x;
+    const tl = (tgtBones[rpm ? 'LeftArm' : 'l_upperArm'] || tgtBones.l_thigh)[0].getWorldPosition(new THREE.Vector3()).x;
     this.flip = Math.sign(sl) !== Math.sign(tl) ? new THREE.Quaternion().setFromAxisAngle(Y, Math.PI) : null;
     tpose.stop();
     this.hips = srcBones.Hips;
@@ -370,7 +370,7 @@ class Mocap {
 }
 
 // ---------------------------------------------------------------------------
-// Ronaldo and Messi stroll around the starting city. A pounce makes them
+// Ronaldo, Messi, Truong Giang and Dam Vinh Hung stroll around the starting city. A pounce makes them
 // react with their catchphrase.
 // ---------------------------------------------------------------------------
 export class CityPeople {
@@ -442,6 +442,7 @@ export class CityPeople {
       p.pos.y = Math.max(terrainHeight(p.pos.x, p.pos.z), top);
 
       p.mocap.update(dt, p.speed, p.walk, p.walk * 2.6);
+      if (p.src.after) p.src.after(p.model);
       // Ronaldo's reaction: SIUUU jump with a full turn
       let hop = 0;
       if (p.react > 0 && p.celebrate === 'siu') {
@@ -459,9 +460,9 @@ export class CityPeople {
     for (const p of this.list) {
       if (p.react > 0) continue;
       if (Math.hypot(p.pos.x - point.x, p.pos.z - point.z) < reach + 0.4 && Math.abs(p.pos.y - point.y) < p.H) {
-        p.react = 2.2;
+        p.react = p.talk || 2.2;
         p.state = 'idle';
-        p.timer = 2.5;
+        p.timer = p.react + 0.3;
         return p;
       }
     }

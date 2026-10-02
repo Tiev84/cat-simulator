@@ -34,6 +34,8 @@ Mỗi con chuột bắt được = 1 điểm (lưu trong trình duyệt).
 
 Ronaldo và Messi là NPC đi dạo trong khu phố đầu tiên (đi bộ bằng hoạt ảnh quay từ người thật — clip Idle/Walk/Run của model Soldier trong ví dụ three.js, chuyển sang từng nhân vật). Mèo vồ trúng thì họ hô câu cửa miệng.
 
+Trường Giang (áo dài vàng rồng) và Đàm Vĩnh Hưng (vest đỏ) không có file 3D: game tự dựng hai người từ ảnh 3 góc nhìn (`models/people/*.jpg`, trong `js/sheetpeople.js`) — thân hình low-poly đo theo dáng trong ảnh, mỗi mặt tam giác lấy hình từ góc nhìn nó quay về (trước / bên / sau). Tiếng của họ ở `sounds/truonggiang.mp3` và `sounds/damvinhhung.mp3`.
+
 - **5 chuột** → cánh quạt trực thăng. Mỗi lần bật cánh (F) phát câu meme "helicopter helicopter".
 - **10 chuột** → mèo Tom (đi 2 chân, giữ E để rón rén). Bật cánh thì Tom bay bằng áo choàng dơi màu tím.
 - **20 chuột** → Mèo Xe Tăng (xe tăng bìa các-tông; giữ E để bắn pháo: BÙM!)

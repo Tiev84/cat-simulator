@@ -427,7 +427,7 @@ function showQuest() {
     return `<li class="${done ? 'done' : ''}"><span>${done ? '✓' : TRACK[r.track].icon + r.at}</span>
     <div><b>${r.name}</b><small>${r.kind === 'wings' ? 'Cánh mới' : 'Nhân vật mới'} · ${r.how}</small></div></li>`;
   }).join('');
-  modal('Săn chuột 🐭', `<p>Chuột trốn trong đồng cỏ và quanh thị trấn. <b>Bấm chuột trái để vồ</b> — mỗi con bắt được là 1 điểm. Ronaldo và Messi đang dạo trong khu phố đầu tiên — thử vồ họ xem!</p>
+  modal('Săn chuột 🐭', `<p>Chuột trốn trong đồng cỏ và quanh thị trấn. <b>Bấm chuột trái để vồ</b> — mỗi con bắt được là 1 điểm. Ronaldo, Messi, Trường Giang và Đàm Vĩnh Hưng đang dạo trong khu phố đầu tiên — thử vồ họ xem!</p>
     <ul class="rewards">${items}</ul>
     <p class="muted">Bấm vào game để xoay camera bằng chuột · Esc để thả con trỏ · Q để xem lại bảng này.<br>Bạn đã bắt được <b>${settings.mice}</b> con chuột.</p>`,
   [['Bắt đầu săn', null, true]]);

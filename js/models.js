@@ -5,6 +5,7 @@ import { OBJLoader } from 'three/addons/loaders/OBJLoader.js';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { Rig, createCat, WALK_OFF, RUN_OFF } from './cat.js';
 import { rigHumanoid } from './autorig.js';
+import { buildSheetPerson, TRUONG_GIANG, DAM_VINH_HUNG } from './sheetpeople.js';
 import { HumanRig, CityPeople, RPM_ROLES } from './people.js';
 import { CITY } from './noise.js';
 import { clamp, lerp, damp } from './noise.js';
@@ -61,19 +62,30 @@ export function loadCatModels() {
   });
   // motion-capture clips (Idle / Walk / Run) from three.js's Soldier example
   A.soldierLoading = g.loadAsync(SOLDIER).then((s) => { A.soldier = s; }).catch((e) => console.warn('Mocap clips unavailable', e));
+  // Truong Giang and Dam Vinh Hung are built from their turnaround pictures
+  const img = (u) => new THREE.ImageLoader().loadAsync(u);
+  A.sheetLoading = Promise.all([img('models/people/truonggiang.jpg'), img('models/people/damvinhhung.jpg')]).then(([tg, dvh]) => {
+    A.truonggiang = buildSheetPerson(TRUONG_GIANG, tg);
+    A.damvinhhung = buildSheetPerson(DAM_VINH_HUNG, dvh);
+  }).catch((e) => console.warn('Sheet people unavailable', e));
   return loading;
 }
 
 const SOLDIER = 'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r170/examples/models/gltf/Soldier.glb';
 
-// Ronaldo and Messi walk around the starting city as NPCs.
+// Ronaldo, Messi, Truong Giang and Dam Vinh Hung walk around the starting city as NPCs.
 export async function createPeople(scene, towns) {
-  await A.soldierLoading;
+  await Promise.all([A.soldierLoading, A.sheetLoading]);
   if (!A.soldier || !A.ronaldo || !A.messi) return null;
-  return new CityPeople(scene, [
+  const defs = [
     { name: 'Ronaldo', src: A.ronaldo, rpm: true, voice: 'ronaldo', line: 'SIUUU!', celebrate: 'siu', walk: 1.6 },
     { name: 'Messi', src: A.messi, rpm: false, voice: 'messi', line: '¿Qué mirás, bobo?', walk: 1.5 },
-  ], A.soldier, { x: CITY.c[0], z: CITY.c[1], w: 110, d: 140 }, towns);
+  ];
+  if (A.truonggiang) {
+    defs.push({ name: 'Trường Giang', src: A.truonggiang, rpm: false, voice: 'truonggiang', line: 'Hồi chiều trời mưa…', walk: 1.3, talk: 5 });
+    defs.push({ name: 'Đàm Vĩnh Hưng', src: A.damvinhhung, rpm: false, voice: 'damvinhhung', line: 'Các em ơi, các em lớn rồi!', walk: 1.35, talk: 5 });
+  }
+  return new CityPeople(scene, defs, A.soldier, { x: CITY.c[0], z: CITY.c[1], w: 110, d: 140 }, towns);
 }
 
 // Ronaldo comes rigged (Ready Player Me skeleton); give him his textures and
