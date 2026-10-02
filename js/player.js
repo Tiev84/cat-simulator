@@ -316,9 +316,11 @@ export class CameraRig {
 
     const goal = this.tmp.copy(player.pos);
     goal.y += camH * lerp(1, 0.8, player.w.sleepW);
-    this.target.x = damp(this.target.x, goal.x, 12, dt);
-    this.target.z = damp(this.target.z, goal.z, 12, dt);
-    this.target.y = damp(this.target.y, goal.y, 8, dt);
+    // follow the cat tightly sideways (a lagging target made it judder
+    // against the background); only height is smoothed
+    this.target.x = goal.x;
+    this.target.z = goal.z;
+    this.target.y = damp(this.target.y, goal.y, 10, dt);
 
     let yaw = this.yaw, pitch = this.pitch, dist = this.dist, look = this.target;
     if (this.cine) {

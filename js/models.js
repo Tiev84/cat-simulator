@@ -44,10 +44,13 @@ export function loadCatModels() {
     new OBJLoader(manager).loadAsync('models/tom.obj'),
     tex('models/tom.png'),
     g.loadAsync('models/messi.glb'),
+    g.loadAsync('models/tank.glb'),
+    tex('models/tank_box.jpg'),
+    tex('models/tank_cat.jpg'),
     f.loadAsync(R + 'ronaldo.fbx'),
     Promise.all(ronTex.map((n) => tex(R + n + '.jpg'))),
-  ]).then(([cat, oiia, mx, oiiaTex, mxTex, mxWh, tomObj, tomTex, messi, ron, ronMaps]) => {
-    Object.assign(A, { cat, oiia, oiiaTex, mx, mxTex, mxWh });
+  ]).then(([cat, oiia, mx, oiiaTex, mxTex, mxWh, tomObj, tomTex, messi, tank, tankBox, tankCat, ron, ronMaps]) => {
+    Object.assign(A, { cat, oiia, oiiaTex, mx, mxTex, mxWh, tank, tankBox, tankCat });
     // Tom (static T-pose game model) and Messi get a skeleton generated here
     tomObj.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ map: tomTex, roughness: 0.7 }); });
     A.tom = rigHumanoid(tomObj, 1.4);
@@ -115,6 +118,7 @@ export function createRig(skin) {
     if (LOOKS[skin.id]) return new ModelQuadRig(skin);
     if (skin.id === 'oiia') return new OiiaRig(skin);
     if (skin.id === 'maxwell') return new MaxwellRig(skin);
+    if (skin.id === 'tank') return new TankRig(skin);
   }
   return createCat(skin);
 }
@@ -498,5 +502,57 @@ class MaxwellRig extends MemeRig {
     // the original dance plays while he spins
     this.dance.paused = spinW < 0.3;
     if (!this.dance.paused) this.mixer.update(dt);
+  }
+}
+
+// The cardboard tank cat (converted from a Blender file). Holding E fires the
+// cannon: the rig raises `fired` and main.js adds the bang and the flash.
+class TankRig extends MemeRig {
+  constructor(skin) {
+    super(skin);
+    for (const t of [A.tankBox, A.tankCat]) t.flipY = false;
+    const model = A.tank.scene.clone(true);
+    model.traverse((o) => {
+      if (!o.isMesh) return;
+      if (!o.geometry.attributes.normal) o.geometry.computeVertexNormals();
+      o.material = new THREE.MeshStandardMaterial({ map: o.material.name === 'cat' ? A.tankCat : A.tankBox, roughness: 0.92, side: THREE.DoubleSide });
+    });
+    // drop the display banner; the cannon points along +X: turn it to face forward
+    const turn = new THREE.Group();
+    model.rotation.y = -Math.PI / 2;
+    turn.add(model);
+    const banner = [];
+    model.traverse((o) => { if (o.name.includes('Cylinder')) banner.push(o); });
+    banner.forEach((o) => o.removeFromParent());
+    this.setup(turn, 1.5, { walk: 1.6, run: 3.6, jump: 2.6, radius: 0.55, wingScale: 1.3, thumbK: 1.05 });
+    const box = new THREE.Box3().setFromObject(this.body);
+    this.muzzle = new THREE.Object3D();
+    this.muzzle.position.set(0, box.max.y * 0.6, box.max.z + 0.05);
+    this.body.add(this.muzzle);
+    this.fireT = 0;
+    this.recoil = 0;
+    this.fired = false;
+  }
+
+  update(dt, st) {
+    const hold = st.groomW;
+    // a tank doesn't waddle: tread rumble and a gentle sway only
+    this.waddle(dt, { ...st, groomW: 0 }, 0);
+    this.body.rotation.z *= 0.3;
+    this.body.position.y = Math.abs(Math.sin(this.phase * 2)) * 0.012 * clamp(st.speed / 1.6, 0, 1);
+    this.fired = false;
+    this.fireT -= dt;
+    if (hold > 0.5 && this.fireT <= 0) {
+      this.fireT = 0.9;
+      this.recoil = 1;
+      this.fired = true;
+    }
+    this.recoil = Math.max(0, this.recoil - dt * 4);
+    this.body.rotation.x -= this.recoil * 0.12;
+    this.body.position.z = -this.recoil * 0.12;
+  }
+
+  muzzleWorld(out) {
+    return this.muzzle.getWorldPosition(out);
   }
 }

@@ -36,6 +36,7 @@ Ronaldo và Messi là NPC đi dạo trong khu phố đầu tiên (đi bộ bằn
 
 - **5 chuột** → cánh quạt trực thăng. Mỗi lần bật cánh (F) phát câu meme "helicopter helicopter".
 - **10 chuột** → mèo Tom (đi 2 chân, giữ E để rón rén). Bật cánh thì Tom bay bằng áo choàng dơi màu tím.
+- **20 chuột** → Mèo Xe Tăng (xe tăng bìa các-tông; giữ E để bắn pháo: BÙM!)
 - **15 chuột** → OIIA Cat (mèo mướp meme). Giữ E là nằm thành ổ bánh mì (giấu chân) và xoay tít kèm tiếng "u i i a i".
 
 **Âm thanh "helicopter helicopter":** phát từ `sounds/helicopter.mp3` (clip meme gốc do bạn cung cấp). Muốn đổi
@@ -83,12 +84,12 @@ Khoảng 1 phút sau link online có bản mới. Người chơi tải lại tra
 
 ## Model 3D
 
-Khu phố trong `models/city/` từ gói **Cartoon City Free** của ithappy. Các model khác trong `models/` do bạn tải về (Sketchfab): mèo bicolor có xương, mèo OIIA, Maxwell, Tom (bản GameCube), Ronaldo, Messi, con dê.
+Khu phố trong `models/city/` từ gói **Cartoon City Free** của ithappy. Các model khác trong `models/` do bạn tải về (Sketchfab), gồm cả xe tăng mèo (chuyển từ file Blender 2.79 sang `tank.glb`): mèo bicolor có xương, mèo OIIA, Maxwell, Tom (bản GameCube), Ronaldo, Messi, con dê.
 Bản quyền thuộc tác giả từng model — dùng cho game chơi vui với bạn bè. Mèo Lực Sĩ vẫn dựng bằng code.
 Nếu model không tải được, game tự dùng mèo dựng bằng code thay thế.
 
 ## Hiệu năng
 
-Mặc định đồ hoạ Trung bình. Bóng đổ vẽ lại cách 1 khung hình, cỏ giảm khi ở trong phố, và nếu game chạy dưới ~32 FPS vài giây liền thì tự giảm một mức đồ hoạ.
+Mặc định đồ hoạ Trung bình. Cỏ giảm khi ở trong phố, và nếu game chạy dưới ~32 FPS vài giây liền thì tự giảm một mức đồ hoạ.
 
 Skybox ban ngày trong `models/sky/` (ảnh trời xanh có mây), mờ dần lúc hoàng hôn/ban đêm/mưa để thấy trời sao.

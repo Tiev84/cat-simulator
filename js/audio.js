@@ -324,6 +324,24 @@ export class Sound {
     trem.stop(t + 0.8);
   }
 
+  // cardboard cannon: a deep thump with a crackle on top
+  boom() {
+    if (!this.ok()) return;
+    const ctx = this.ctx;
+    const t = ctx.currentTime;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(120, t);
+    o.frequency.exponentialRampToValueAtTime(38, t + 0.5);
+    const g = ctx.createGain();
+    o.connect(g).connect(this.master);
+    this.env(g, t, 0.005, 0.9, 0.6);
+    o.start(t);
+    o.stop(t + 0.7);
+    const f = this.burst('lowpass', 1800, 0.7, 0.55, 0.003, 0.5, this.brown);
+    f.frequency.setTargetAtTime(200, t + 0.05, 0.15);
+  }
+
   pounce() {
     if (!this.ok()) return;
     const f = this.burst('bandpass', 900, 0.9, 0.12, 0.02, 0.18);

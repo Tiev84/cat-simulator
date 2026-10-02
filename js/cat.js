@@ -55,6 +55,11 @@ export const SKINS = [
     base: '#7fa3d3', dark: '#769bcb', white: '#f3f4f7', stripes: 0, shade: 0.06, toon: true,
     whites: { chest: 1, muzzle: 1, paws: 1, socks: 0.11 }, eye: '#f3ec9a', iris: '#2fb54a', nose: '#1d1c22', ear: '#e9849f', meow: 0.9, whisker: '#25262c',
   },
+  {
+    id: 'tank', name: 'Mèo Xe Tăng', badge: 'UNLOCK', kind: 'tank', shape: 'kitten', hold: 'fire', unlock: 20,
+    desc: 'Hoà bình chưa bao giờ là lựa chọn. Giữ E để bắn pháo.',
+    base: '#c9a46c', dark: '#a8844f', white: '#f0e2c8', stripes: 0, shade: 0.1, whites: {}, eye: '#8a7a3a', nose: '#c88c7a', ear: '#d9a08c', meow: 0.95,
+  },
 ];
 
 // ---------------------------------------------------------------------------

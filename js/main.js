@@ -21,21 +21,22 @@ const frame = () => new Promise((r) => { requestAnimationFrame(() => r()); setTi
 
 // Medium is the default and is tuned for speed over looks.
 const QUALITY = {
-  low: { px: 0.7, shadow: 0, ext: 10, near: 22000, far: 9000 },
-  medium: { px: 1, shadow: 1024, ext: 11, near: 55000, far: 20000 },
-  high: { px: 1.5, shadow: 2048, ext: 14, near: 110000, far: 45000 },
+  low: { px: 1, shadow: 0, ext: 10, near: 22000, far: 9000 },
+  medium: { px: 1.5, shadow: 1024, ext: 11, near: 55000, far: 20000 },
+  high: { px: 2, shadow: 2048, ext: 14, near: 110000, far: 45000 },
   ultra: { px: 2, shadow: 4096, ext: 16, near: 200000, far: 110000 },
 };
 const LEVELS = ['low', 'medium', 'high', 'ultra'];
-const MEOW_TEXT = { ronaldo: 'SIUUU!', messi: '¿Qué mirás, bobo?', ginger: 'meo!', midnight: 'meo', tuxedo: 'meo!', chonky: 'mrrrp', buff: 'MEO.', maxwell: 'meo?', tom: 'MEOWWW!', oiia: 'oiia!' };
+const MEOW_TEXT = { ronaldo: 'SIUUU!', messi: '¿Qué mirás, bobo?', ginger: 'meo!', midnight: 'meo', tuxedo: 'meo!', chonky: 'mrrrp', buff: 'MEO.', maxwell: 'meo?', tank: 'meo.', tom: 'MEOWWW!', oiia: 'oiia!' };
 const BADGES = { DEFAULT: 'MẶC ĐỊNH', GENERATED: 'PHỐI MÀU', CHONK: 'MẬP', MEME: 'MEME', UNLOCK: 'MỞ KHOÁ' };
-const HOLD = { groom: 'liếm lông', flex: 'gồng cơ', sneak: 'rón rén', spin: 'xoay', celebrate: 'ăn mừng' };
+const HOLD = { groom: 'liếm lông', flex: 'gồng cơ', sneak: 'rón rén', spin: 'xoay', celebrate: 'ăn mừng', fire: 'bắn pháo' };
 
 // Catching mice unlocks these.
 const REWARDS = [
   { at: 5, kind: 'wings', id: 'helicopter', name: 'Cánh quạt trực thăng', how: 'Bấm F để quạt quay và cất cánh.' },
   { at: 10, kind: 'skin', id: 'tom', name: 'Mèo Tom', how: 'Bật cánh (F) là Tom bay bằng áo choàng dơi.' },
   { at: 15, kind: 'skin', id: 'oiia', name: 'Mèo OIIA', how: 'Giữ E để nằm ổ bánh mì và xoay tít: oiia oiia!' },
+  { at: 20, kind: 'skin', id: 'tank', name: 'Mèo Xe Tăng', how: 'Giữ E để bắn pháo bìa các-tông: BÙM!' },
 ].map((r) => ({ track: 'mice', ...r }));
 const TRACK = { mice: { icon: '🐭', unit: 'con chuột' } };
 
@@ -45,13 +46,14 @@ function loadSettings() {
   try { return JSON.parse(localStorage.getItem(SAVE_KEY)) || {}; } catch { return {}; }
 }
 const settings = Object.assign({ quality: 'medium', weather: 'clear', time: 'cycle', sound: true, skin: 'ginger', wings: 'angel', mice: 0 }, loadSettings());
+// v3: start the mouse hunt over (test values had unlocked everything)
+if (settings.v !== 3) { settings.mice = 0; settings.quality = 'medium'; settings.v = 3; save(); }
 const unlocked = (item) => !item || !item.unlock || settings.mice >= item.unlock;
 if (!SKINS.some((s) => s.id === settings.skin)) settings.skin = 'ginger';
 if (!unlocked(SKINS.find((s) => s.id === settings.skin))) settings.skin = 'ginger';
 if (!unlocked(WINGS.find((w) => w.id === settings.wings))) settings.wings = 'angel';
 if (!QUALITY[settings.quality]) settings.quality = 'medium';
 // v2: everyone starts again from Medium graphics (tuned for smooth play)
-if (settings.v !== 2) { settings.quality = 'medium'; settings.v = 2; }
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(settings)); } catch { /* storage unavailable */ }
 }
@@ -64,8 +66,6 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.05;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-// shadows are redrawn every other frame (see tick)
-renderer.shadowMap.autoUpdate = false;
 $('stage').appendChild(renderer.domElement);
 
 const pmrem = new THREE.PMREMGenerator(renderer);
@@ -528,8 +528,6 @@ function tick() {
   const dt = Math.min(clock.getDelta(), 0.05);
   if (!W || !W.rig) return;
   step(dt);
-  frameNo++;
-  if (frameNo % 2 === 0) renderer.shadowMap.needsUpdate = true;
   renderer.render(W.scene, W.camera);
   autoQuality(dt);
   if (debugOn) showDebug();
@@ -537,7 +535,6 @@ function tick() {
 }
 
 // If the game runs slowly for a few seconds, step the graphics down a level.
-let frameNo = 0;
 let perfT = 0, perfFrames = 0, perfCooldown = 6;
 function autoQuality(dt) {
   if (!running || document.hidden || dt >= 0.05) return;
@@ -605,6 +602,12 @@ function step(dt) {
   W.wasFlying = player.flying;
   sound.rotor(wings.isRotor ? wings.omega : 0);
   sound.oiia(rig.skin.hold === 'spin' && player.w.groomW > 0.5);
+  if (rig.fired) {
+    sound.boom();
+    const p = rig.muzzleWorld(new THREE.Vector3());
+    W.text.spawn('💥', p, { size: 1.0, life: 0.6, rise: 0.3 });
+    W.text.spawn('BÙM!', p.add(new THREE.Vector3(0, 0.5, 0)), { size: 0.9, life: 1.1, rise: 0.5, color: '#ffd27a' });
+  }
 
   // mice
   W.mice.update(dt, time, player, {
@@ -723,7 +726,6 @@ window.catsim = {
       for (const k of keys) { input.keys.delete(k); input.released.add(k); }
       step(1 / 60);
     }
-    renderer.shadowMap.needsUpdate = true;
     renderer.render(W.scene, W.camera);
     if (debugOn) showDebug();
     input.endFrame();
